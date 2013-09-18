@@ -11,12 +11,8 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <signal.h>
-#include <stdlib.h>
 
 extern char **getaline();
-
-#define EZMALLOC(type, n) \
-  (type *) malloc((n) * sizeof(type))
 
 /*
  * Handle exit signals from child processes
@@ -33,13 +29,13 @@ void sig_handler(int signal) {
  */ 
 main() {
   int i;
-  char **args; // 2D char array of args
+  char **args; 
   int result;
-  int block; // if the command does not end in an '&'
-  int output; // whether output should be redirected
-  int input; // whether there is redirected input
-  char *output_filename; // name of file for output redirection
-  char *input_filename; // name of input file
+  int block;
+  int output;
+  int input;
+  char *output_filename;
+  char *input_filename;
 
   // Set up the signal handler
   sigset(SIGCHLD, sig_handler);
@@ -48,7 +44,7 @@ main() {
   while(1) {
 
     // Print out the prompt and get the input
-    printf(">");
+    printf("->");
     args = getaline();
 
     // No input, continue
@@ -60,7 +56,7 @@ main() {
       continue;
 
     // Check for an ampersand
-    block = (ampersand(args) == 0); 
+    block = (ampersand(args) == 0);
 
     // Check for redirected input
     input = redirect_input(args, &input_filename);
@@ -96,7 +92,6 @@ main() {
     do_command(args, block, 
 	       input, input_filename, 
 	       output, output_filename);
-
   }
 }
 
@@ -157,32 +152,15 @@ int do_command(char **args, int block,
 
   if(child_id == 0) {
 
-    // Execute the commandls
-    if(args[0] == "exit") {
-      exit(0);
-    }
-    else if (args[1] == NULL) { // command with no arguments
-      execvp(args[0], args);
-    } 
-    else if (!input && !output) { // command with arguments
-      execvp(args[0], args);
-    }
-    else if (input && output) {
-      printf("input and output\n");
+    // Set up redirection in the child process
+    if(input)
       freopen(input_filename, "r", stdin);
-      execvp(args[0], args);
+
+    if(output)
       freopen(output_filename, "w+", stdout);
-    }
-    else if (input) { // command with file redirection coming in
-      printf("input\n");
-      freopen(input_filename, "r", stdin);
-      execvp(args[0], args);
-    }
-    else if (output) {
-      printf("output\n");
-      execvp(args[0], args);
-      freopen(output_filename, "w+", stdout);
-    }
+
+    // Execute the command
+    result = execvp(args[0], args);
 
     exit(-1);
   }
@@ -209,14 +187,14 @@ int redirect_input(char **args, char **input_filename) {
 
       // Read the filename
       if(args[i+1] != NULL) {
-        *input_filename = args[i+1];
+	*input_filename = args[i+1];
       } else {
-        return -1;
+	return -1;
       }
 
       // Adjust the rest of the arguments in the array
       for(j = i; args[j-1] != NULL; j++) {
-        args[j] = args[j+2];
+	args[j] = args[j+2];
       }
 
       return 1;
@@ -241,14 +219,14 @@ int redirect_output(char **args, char **output_filename) {
 
       // Get the filename 
       if(args[i+1] != NULL) {
-        *output_filename = args[i+1];
+	*output_filename = args[i+1];
       } else {
-        return -1;
+	return -1;
       }
 
       // Adjust the rest of the arguments in the array
       for(j = i; args[j-1] != NULL; j++) {
-        args[j] = args[j+2];
+	args[j] = args[j+2];
       }
 
       return 1;
