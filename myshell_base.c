@@ -11,12 +11,8 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <signal.h>
-#include <stdlib.h>
 
 extern char **getaline();
-
-#define EZMALLOC(type, n) \
-  (type *) malloc((n) * sizeof(type))
 
 /*
  * Handle exit signals from child processes
@@ -33,22 +29,22 @@ void sig_handler(int signal) {
  */ 
 main() {
   int i;
-  char **args; // 2D char array of args
+  char **args; 
   int result;
-  int block; // if the command does not end in an '&'
-  int output; // whether output should be redirected
-  int input; // whether there is redirected input
-  char *output_filename; // name of file for output redirection
-  char *input_filename; // name of input file
+  int block;
+  int output;
+  int input;
+  char *output_filename;
+  char *input_filename;
 
   // Set up the signal handler
-  sigset(SIGCHLD, sig_handler); // SIGCHLD is sent when child process ends
+  sigset(SIGCHLD, sig_handler);
 
   // Loop forever
   while(1) {
 
     // Print out the prompt and get the input
-    printf(">");
+    printf("->");
     args = getaline();
 
     // No input, continue
@@ -60,7 +56,7 @@ main() {
       continue;
 
     // Check for an ampersand
-    block = (ampersand(args) == 0); // block if not a background process
+    block = (ampersand(args) == 0);
 
     // Check for redirected input
     input = redirect_input(args, &input_filename);
@@ -90,24 +86,12 @@ main() {
     case 1:
       printf("Redirecting output to: %s\n", output_filename);
       break;
-    case 2:
-      printf("Appending output to: %s\n", output_filename);
-      break;
     }
 
-    // // Handle piping
-    // if (pipe(args)) {
-    //   // call recursive pipe function
-    // } else {
-      // Do the command
-        do_command(args, block, 
-            input, input_filename, 
-            output, output_filename);
-    // }
-
-    
-
-    // free(args);
+    // Do the command
+    do_command(args, block, 
+	       input, input_filename, 
+	       output, output_filename);
   }
 }
 
@@ -142,29 +126,6 @@ int internal_command(char **args) {
   return 0;
 }
 
-// /* 
-//  * Check for a pipe character
-//  */
-// int pipe(char **args) {
-//   int i;
-//   for(i = 0; args[i] != NULL; i++) {
-//     if(args[i][0] == '| ') {
-//       return 1;
-//     }
-//   }
-//   return 0;
-// }
-
-// int do_pipe(char **args) {
-//   // grab what's before the first pipe
-
-//   // run that command
-
-//   // 
-
-//   return 0;
-// }
-
 /* 
  * Do the command
  */
@@ -191,48 +152,15 @@ int do_command(char **args, int block,
 
   if(child_id == 0) {
 
-    // Execute the command
+    // Set up redirection in the child process
+    if(input)
+      freopen(input_filename, "r", stdin);
 
-    // file redirection both in and out
-    printf("output:%d\n", output);
-    if (input && (output >= 1)) { 
-      freopen(input_filename, "r", stdin);
-      if(output == 1) { // re-write file, or create
-        printf("input and output\n");
-        freopen(output_filename, "w+", stdout);
-      } else { // append file, or create
-        printf("input and output append\n");
-        freopen(output_filename, "a", stdout);
-      }
-      execvp(args[0], args);
-    }
-    // command with file redirection coming in
-    else if (input) { 
-      printf("input\n");
-      freopen(input_filename, "r", stdin);
-      execvp(args[0], args);
-    }
-    // command with output redirected to file
-    else if (output >= 1) { 
-      if(output == 1) { // re-write file, or create
-        printf("output\n");
-        freopen(output_filename, "w+", stdout);
-      } else { // append file, or create
-        printf("output append\n");
-        freopen(output_filename, "a", stdout);
-      }
-      execvp(args[0], args);
-    }
-    // command with no arguments
-    else if (args[1] == NULL) { 
-      printf("no args\n");
-      execvp(args[0], args);
-    } 
-    // command with arguments
-    else if (!input && !output) {
-      printf("args\n");
-      execvp(args[0], args);
-    }
+    if(output)
+      freopen(output_filename, "w+", stdout);
+
+    // Execute the command
+    result = execvp(args[0], args);
 
     exit(-1);
   }
@@ -241,13 +169,7 @@ int do_command(char **args, int block,
   if(block) {
     printf("Waiting for child, pid = %d\n", child_id);
     result = waitpid(child_id, &status, 0);
-    if (result == -1) {
-      printf("There was an error executing the process: %s\n", args[0]);
-      return(1);
-    }
   }
-
-  return(0);
 }
 
 /*
@@ -265,14 +187,14 @@ int redirect_input(char **args, char **input_filename) {
 
       // Read the filename
       if(args[i+1] != NULL) {
-        *input_filename = args[i+1];
+	*input_filename = args[i+1];
       } else {
-        return -1;
+	return -1;
       }
 
       // Adjust the rest of the arguments in the array
       for(j = i; args[j-1] != NULL; j++) {
-        args[j] = args[j+2];
+	args[j] = args[j+2];
       }
 
       return 1;
@@ -290,55 +212,27 @@ int redirect_output(char **args, char **output_filename) {
   int j;
 
   for(i = 0; args[i] != NULL; i++) {
-    // Look for the >>
-    if((args[i][0] == '>') && (args[i+1][0] == '>')) {
-      free(args[i]);
-      free(args[i+1]);
 
-      // Get the filename 
-      if(args[i+2] != NULL) {
-        *output_filename = args[i+2];
-      } else {
-        return -1;
-      }
-
-      // Adjust the rest of the arguments in the array
-      for(j = i; args[j-1] != NULL; j++) {
-        args[j] = args[j+3];
-      }
-
-      return 2;
-    }
-    // else, look for the >
-    else if(args[i][0] == '>') {
+    // Look for the >
+    if(args[i][0] == '>') {
       free(args[i]);
 
       // Get the filename 
       if(args[i+1] != NULL) {
-        *output_filename = args[i+1];
+	*output_filename = args[i+1];
       } else {
-        return -1;
+	return -1;
       }
 
       // Adjust the rest of the arguments in the array
       for(j = i; args[j-1] != NULL; j++) {
-        args[j] = args[j+2];
+	args[j] = args[j+2];
       }
 
       return 1;
     }
   }
 
-  return 0;
-}
-
-// for testing purposes
-int print_args(char **args) {
-  int i;
-  for(i=0; args[i] != NULL; i++) {
-    printf("%s,", args[i]);
-  }
-  printf("\n");
   return 0;
 }
 
