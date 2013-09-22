@@ -95,15 +95,16 @@ main() {
       break;
     }
 
-    // // Handle piping
-    // if (pipe(args)) {
-    //   // call recursive pipe function
-    // } else {
+    // Handle piping
+    if (is_pipe(args)) {
+      // call recursive pipe function
+      do_pipe(args);
+    } else {
       // Do the command
         do_command(args, block, 
             input, input_filename, 
             output, output_filename);
-    // }
+    }
 
     
 
@@ -142,28 +143,33 @@ int internal_command(char **args) {
   return 0;
 }
 
-// /* 
-//  * Check for a pipe character
-//  */
-// int pipe(char **args) {
-//   int i;
-//   for(i = 0; args[i] != NULL; i++) {
-//     if(args[i][0] == '| ') {
-//       return 1;
-//     }
-//   }
-//   return 0;
-// }
+/* 
+ * Check for a pipe character
+ */
+int is_pipe(char **args) {
+  int i;
+  for(i = 0; args[i] != NULL; i++) {
+    if(args[i][0] == '|') {
+      return 1;
+    }
+  }
+  return 0;
+}
 
-// int do_pipe(char **args) {
-//   // grab what's before the first pipe
+int do_pipe(char **args) {
+  // grab what's before the first pipe
 
-//   // run that command
+  // run that command
 
-//   // 
+  // if there's another command
+    // put this command's output in stdin
 
-//   return 0;
-// }
+    // recursively call this method with rest of args
+
+  // else, put this commands's output in stdout
+
+  return 0;
+}
 
 /* 
  * Do the command
@@ -241,6 +247,7 @@ int do_command(char **args, int block,
   if(block) {
     printf("Waiting for child, pid = %d\n", child_id);
     result = waitpid(child_id, &status, 0);
+    printf("Waiting for child complete");
     if (result == -1) {
       printf("There was an error executing the process: %s\n", args[0]);
       return(1);
