@@ -59,47 +59,48 @@ main() {
     if(internal_command(args))
       continue;
 
-    // Check for an ampersand
-    block = (ampersand(args) == 0); // block if not a background process
-
-    // Check for redirected input
-    input = redirect_input(args, &input_filename);
-
-    switch(input) {
-    case -1:
-      printf("Syntax error!\n");
-      continue;
-      break;
-    case 0:
-      break;
-    case 1:
-      printf("Redirecting input from: %s\n", input_filename);
-      break;
-    }
-
-    // Check for redirected output
-    output = redirect_output(args, &output_filename);
-
-    switch(output) {
-    case -1:
-      printf("Syntax error!\n");
-      continue;
-      break;
-    case 0:
-      break;
-    case 1:
-      printf("Redirecting output to: %s\n", output_filename);
-      break;
-    case 2:
-      printf("Appending output to: %s\n", output_filename);
-      break;
-    }
-
     // Handle piping
     if (is_pipe(args)) {
       // call recursive pipe function
-      do_pipe(args);
+        do_pipe(args);
     } else {
+
+      // Check for an ampersand
+      block = (ampersand(args) == 0); // block if not a background process
+
+      // Check for redirected input
+      input = redirect_input(args, &input_filename);
+
+      switch(input) {
+      case -1:
+        printf("Syntax error!\n");
+        continue;
+        break;
+      case 0:
+        break;
+      case 1:
+        printf("Redirecting input from: %s\n", input_filename);
+        break;
+      }
+
+      // Check for redirected output
+      output = redirect_output(args, &output_filename);
+
+      switch(output) {
+      case -1:
+        printf("Syntax error!\n");
+        continue;
+        break;
+      case 0:
+        break;
+      case 1:
+        printf("Redirecting output to: %s\n", output_filename);
+        break;
+      case 2:
+        printf("Appending output to: %s\n", output_filename);
+        break;
+      }
+      
       // Do the command
         do_command(args, block, 
             input, input_filename, 
@@ -156,11 +157,45 @@ int is_pipe(char **args) {
   return 0;
 }
 
+/*
+ * get first command from args with pipe, and cut off the pipe
+ */
+char **get_pipe_command(char **args) {
+  int i;
+  char **first_args = EZMALLOC(char *, 20); // allocate char** for first command and it's args
+  for(i=0; args[i][0] != '|'; i++) {
+    first_args[i] = args[i];
+    
+  }
+
+  return first_args;
+}
+
+ /*
+  * recursive method to handle strings of piped commands
+  */
 int do_pipe(char **args) {
+  int output; // whether output should be redirected
+  int input; // whether there is redirected input
+  char *output_filename; // name of file for output redirection
+  char *input_filename; // name of input file
+
+
   // grab what's before the first pipe
+  char **first_args = get_pipe_command(args);
+  printf("doing pipe with: ");
+  print_args(first_args);
+
+  // Check for redirected input
+  input = redirect_input(first_args, &input_filename);
+
+  // Check for redirected output
+  output = redirect_output(first_args, &output_filename);
 
   // run that command
-
+  do_command(first_args, block, 
+          input, input_filename, 
+          output, output_filename);
   // if there's another command
     // put this command's output in stdin
 
@@ -197,10 +232,11 @@ int do_command(char **args, int block,
 
   if(child_id == 0) {
 
-    // Execute the command
+    // Set up stuff for the command
 
     // file redirection both in and out
     printf("output:%d\n", output);
+    print_args(args);
     if (input && (output >= 1)) { 
       freopen(input_filename, "r", stdin);
       if(output == 1) { // re-write file, or create
@@ -210,13 +246,11 @@ int do_command(char **args, int block,
         printf("input and output append\n");
         freopen(output_filename, "a", stdout);
       }
-      execvp(args[0], args);
     }
     // command with file redirection coming in
     else if (input) { 
       printf("input\n");
       freopen(input_filename, "r", stdin);
-      execvp(args[0], args);
     }
     // command with output redirected to file
     else if (output >= 1) { 
@@ -227,18 +261,18 @@ int do_command(char **args, int block,
         printf("output append\n");
         freopen(output_filename, "a", stdout);
       }
-      execvp(args[0], args);
     }
     // command with no arguments
     else if (args[1] == NULL) { 
       printf("no args\n");
-      execvp(args[0], args);
     } 
     // command with arguments
-    else if (!input && !output) {
+    else {
       printf("args\n");
-      execvp(args[0], args);
     }
+
+    // execute the actual command
+    execvp(args[0], args);
 
     exit(-1);
   }
@@ -247,7 +281,7 @@ int do_command(char **args, int block,
   if(block) {
     printf("Waiting for child, pid = %d\n", child_id);
     result = waitpid(child_id, &status, 0);
-    printf("Waiting for child complete");
+    printf("Waiting for child complete\n");
     if (result == -1) {
       printf("There was an error executing the process: %s\n", args[0]);
       return(1);
