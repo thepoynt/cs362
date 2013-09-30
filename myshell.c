@@ -62,7 +62,7 @@ main() {
     // Handle piping
     int pipe = is_pipe(args);
     if (pipe) {
-      // call recursive pipe function
+      // call pipe forking function - it handles everything from here
         fork_pipes(pipe+1, args);
     } else {
 
@@ -108,10 +108,6 @@ main() {
             output, output_filename,
             0,0,0);
     }
-
-    
-
-    // free(args);
   }
 }
 
@@ -162,94 +158,112 @@ int is_pipe(char **args) {
   return num_pipes;
 }
 
+
 /*
  * get first command from args with pipe, and cut off the pipe
  * to_exec points to remaining commands
  */
-char **get_pipe_command(char **args, char**to_exec) {
-  int i;
-  char **first_args = EZMALLOC(char *, 20); // allocate char** for first command and it's args
-  for(i=0; args[i][0] != '|'; i++) {
-    first_args[i] = args[i];
-    to_exec = args[i+1];
+char **get_pipe_command(char **to_exec, int *num_args) {
+  // printf("to_exec"); print_args(to_exec);
+  int i = 0;
+  char **first_args = EZMALLOC(char *, 20); // allocate char** for first command and its args
+  while ((*to_exec != NULL) && (**to_exec != '|')) {
+    printf("get_pipe_command i: %d\n", i);
+    printf("%s\n", *to_exec);
+    first_args[i] = *to_exec;
+    to_exec++;
+    i++;
   }
-
+  *num_args = i;
+  to_exec++;
+  first_args[i] = NULL;
+  printf("pipe command: ");
+  print_args(first_args);
+  printf("rest:");
+  print_args(to_exec);
   return first_args;
 }
 
-// int spawn_proc (int in, int out, char **args) {
-//   pid_t pid;
 
-//   if ((pid = fork ()) == 0) {
-//     if (in != 0){
-//       dup2 (in, 0);
-//       close (in);
-//     }
-
-//     if (out != 1) {
-//       dup2 (out, 1);
-//       close (out);
-//     }
-
-//     return execvp (args[0], args);
-//   }
-
-//   return pid;
-// }
-
-int fork_pipes (int n, char **args) { // Method based on code from http://stackoverflow.com/questions/8082932/connecting-n-commands-with-pipes-in-a-shell
+int fork_pipes (int n, char **args) { // Function based on code from http://stackoverflow.com/questions/8082932/connecting-n-commands-with-pipes-in-a-shell
   int i;
-  pid_t pid;
-  int in, fd[2];
-  char **to_exec;
-
+  int in, fd[2]; // for piping
+  // char **to_exec = args; // second pointer to args that always points to next command in args
   int block; // if the command does not end in an '&'
   int output; // whether output should be redirected
   int input; // whether there is redirected input
   char *output_filename; // name of file for output redirection
   char *input_filename; // name of input file
+  int num_args = 0; // number of strings in first_args
 
   /* The first process should get its input from the original file descriptor 0.  */
   in = 0;
 
   /* Note the loop bound, we spawn here all, but the last stage of the pipeline.  */
-  for (i = 0; i < n - 1; ++i)
-    {
-      pipe (fd);
+  for (i = 0; i < n - 1; ++i) {
+    printf("fork_pipes loop i: %d\n", i);
+    pipe (fd);
 
-      /* f[1] is the write end of the pipe, we carry `in` from the prev iteration.  */
-      char **first_args = get_pipe_command(args, to_exec);
+    /* f[1] is the write end of the pipe, we carry `in` from the prev iteration.  */
+    char **first_args = get_pipe_command(args, &num_args);
+    args += num_args+1;
+    printf("current command in fork: ");
+    print_args(first_args);
+    printf("to_exec in fork: ");
+    print_args(args);
 
-      // Check for an ampersand
-      block = (ampersand(first_args) == 0); // block if not a background process
+    // Check for an ampersand
+    block = (ampersand(first_args) == 0); // block if not a background process
 
-      // Check for redirected input
-      input = redirect_input(first_args, &input_filename);
+    // Check for redirected input
+    input = redirect_input(first_args, &input_filename);
 
-      // Check for redirected output
-      output = redirect_output(first_args, &output_filename);
+    // Check for redirected output
+    output = redirect_output(first_args, &output_filename);
 
-      // spawn_proc (in, fd[1], first_args);
-      do_command(first_args, block, 
-                input, input_filename, 
-                output, output_filename,
-                in, fd[1], 1);
+    // spawn_proc (in, fd[1], first_args);
+    do_command(first_args, block, 
+              input, input_filename, 
+              output, output_filename,
+              in, fd[1], 1);
 
-      /* No need for the write and of the pipe, the child will write here.  */
-      close (fd [1]);
+    /* No need for the write and of the pipe, the child will write here.  */
+    close (fd[1]);
 
-      /* Keep the read end of the pipe, the next child will read from there.  */
-      in = fd [0];
+    /* Keep the read end of the pipe, the next child will read from there.  */
+    in = fd[0];
+
+    int j=0;
+    for (j = 0; j < num_args; j++) {
+      free(first_args[j]);
     }
+    free(first_args);
+  }
 
   /* Last stage of the pipeline - set stdin be the read end of the previous pipe
      and output to the original file descriptor 1. */  
   if (in != 0)
     dup2 (in, 0);
 
+  printf("****");
+  print_args(args);
   /* Execute the last stage with the current process. */
-  return execvp (cmd [i].argv [0], (char * const *)cmd [i].argv);
+  // Check for an ampersand
+  block = (ampersand(args) == 0); // block if not a background process
+
+  // Check for redirected input
+  input = redirect_input(args, &input_filename);
+
+  // Check for redirected output
+  output = redirect_output(args, &output_filename);
+
+  return do_command(args, block, 
+                input, input_filename, 
+                output, output_filename,
+                0,0,0);
 }
+
+
 
 // /*
 //   * method to handle strings of piped commands, calls do_pip_recursive
@@ -326,6 +340,7 @@ int do_command(char **args, int block,
 
     // If we're coming from a pipe, handle I/O from in and out
     if(is_pipe) {
+      printf("Running command from pipe\n");
       if (in != 0){
         dup2 (in, 0);
         close (in);
@@ -339,7 +354,6 @@ int do_command(char **args, int block,
     } else {
 
       // file redirection both in and out
-      printf("output:%d\n", output);
       print_args(args);
       if (input && (output >= 1)) { 
         freopen(input_filename, "r", stdin);
@@ -386,7 +400,6 @@ int do_command(char **args, int block,
   if(block) {
     printf("Waiting for child, pid = %d\n", child_id);
     result = waitpid(child_id, &status, 0);
-    printf("Waiting for child complete\n");
     if (result == -1) {
       printf("There was an error executing the process: %s\n", args[0]);
       return(1);

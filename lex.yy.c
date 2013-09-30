@@ -452,8 +452,8 @@ int yy_flex_debug = 0;
 char *yytext;
 #line 1 "lex.c"
 #line 2 "lex.c"
-int _numargs = 10;
-char *_args[10];
+int _numargs = 100;
+char *_args[100];
 int _argcount = 0;
 #line 459 "lex.yy.c"
 
