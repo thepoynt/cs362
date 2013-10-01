@@ -27,9 +27,9 @@ SPECIAL	[()><|&;*]
 %%
 
 char **getaline() {
-  // return (char **)yylex();
-	yylex();
-	return &_args[0];
+	return (char **)yylex();
+	// yylex();
+	// return &_args[0];
 }
 
 

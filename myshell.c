@@ -32,8 +32,8 @@ void sig_handler(int signal) {
  * The main shell function
  */ 
 main() {
-  int i;
-  char **args; // 2D char array of args
+  int i = 0;
+  char **args = NULL; // 2D char array of args
   int result;
   int block; // if the command does not end in an '&'
   int output; // whether output should be redirected
@@ -55,6 +55,8 @@ main() {
     if(args[0] == NULL)
       continue;
 
+    i++; // for debugging
+
     // Check for internal shell commands, such as exit
     if(internal_command(args))
       continue;
@@ -63,7 +65,7 @@ main() {
     int pipe = is_pipe(args);
     if (pipe) {
       // call pipe forking function - it handles everything from here
-        fork_pipes(pipe+1, args);
+      fork_pipes(pipe+1, args);
     } else {
 
       // Check for an ampersand
@@ -202,7 +204,21 @@ int fork_pipes (int n, char **args) { // Function based on code from http://stac
   /* Note the loop bound, we spawn here all, but the last stage of the pipeline.  */
   for (i = 0; i < n - 1; ++i) {
     printf("fork_pipes loop i: %d\n", i);
-    pipe (fd);
+    int pipe_code = pipe (fd);
+    // Check for errors in pipe()
+    if (pipe_code)
+     {
+       fprintf (stderr, "Pipe failed.\n");
+       return EXIT_FAILURE;
+     }
+    switch(pipe_code) {
+    case EMFILE:
+      perror("Error EMFILE: this process has too many files open");
+      return;
+    case ENFILE:
+      perror("Error ENFILE: the system has too many files open");
+      return;
+    }
 
     /* f[1] is the write end of the pipe, we carry `in` from the prev iteration.  */
     char **first_args = get_pipe_command(args, &num_args);
@@ -242,8 +258,24 @@ int fork_pipes (int n, char **args) { // Function based on code from http://stac
 
   /* Last stage of the pipeline - set stdin be the read end of the previous pipe
      and output to the original file descriptor 1. */  
-  if (in != 0)
-    dup2 (in, 0);
+  int pipe_code = pipe(fd);
+  // Check for errors in pipe()
+  if (pipe_code)
+   {
+     fprintf (stderr, "Pipe failed.\n");
+     return EXIT_FAILURE;
+   }
+  switch(pipe_code) {
+  case EMFILE:
+    perror("Error EMFILE: this process has too many files open");
+    return;
+  case ENFILE:
+    perror("Error ENFILE: the system has too many files open");
+    return;
+  }
+
+  // if (in != 0)
+  //   dup2 (in, 0);
 
   printf("****");
   print_args(args);
@@ -257,59 +289,17 @@ int fork_pipes (int n, char **args) { // Function based on code from http://stac
   // Check for redirected output
   output = redirect_output(args, &output_filename);
 
-  return do_command(args, block, 
+  int ret = do_command(args, block, 
                 input, input_filename, 
                 output, output_filename,
-                0,0,0);
+                in,1,1);
+
+  // dup2(fd[0], 0);
+  // dup2(fd[0], 1);
+
+  return ret;
 }
 
-
-
-// /*
-//   * method to handle strings of piped commands, calls do_pip_recursive
-//   */
-// int do_pipe(char **args) {
-
-// }
-
-//  /*
-//   * recursive method to handle strings of piped commands
-//   */
-// int do_pipe_recursive(char **args, ) {
-//   int output; // whether output should be redirected
-//   int input; // whether there is redirected input
-//   char *output_filename; // name of file for output redirection
-//   char *input_filename; // name of input file
-
-//   if(is_pipe(args)) {
-//     // grab what's before the first pipe
-//     char **first_args = get_pipe_command(args);
-//     printf("doing pipe with: ");
-//     print_args(first_args);
-
-//     // Check for redirected input
-//     input = redirect_input(first_args, &input_filename);
-
-//     // Check for redirected output
-//     output = redirect_output(first_args, &output_filename);
-
-//     // redirect stdout to pipe
-
-//     // run that command
-//     do_command(first_args, block, 
-//             input, input_filename, 
-//             output, output_filename);
-    
-//     // recursively call this method with rest of args
-
-
-//   // if there's another command
-//   } else {
-//     // else, put this commands's output in stdout
-
-//   }
-//   return 0;
-// }
 
 /* 
  * Do the command
