@@ -11,7 +11,7 @@ README
 
 	myshell is a simple shell program written in C, emulating some of the core behavior of the bash shell.
 
-	It runs basic commands, with and without arguments. It handles piping. 
+	It runs basic commands, with and without arguments. It handles piping, with file redirection input at the beginning and output at the end. 
 
 
 AUTHORS

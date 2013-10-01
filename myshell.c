@@ -156,7 +156,7 @@ int is_pipe(char **args) {
       num_pipes = num_pipes+1;
     }
   }
-  printf("Number of pipes: %d\n", num_pipes);
+  // printf("Number of pipes: %d\n", num_pipes);
   return num_pipes;
 }
 
@@ -170,8 +170,8 @@ char **get_pipe_command(char **to_exec, int *num_args) {
   int i = 0;
   char **first_args = EZMALLOC(char *, 20); // allocate char** for first command and its args
   while ((*to_exec != NULL) && (**to_exec != '|')) {
-    printf("get_pipe_command i: %d\n", i);
-    printf("%s\n", *to_exec);
+    // printf("get_pipe_command i: %d\n", i);
+    // printf("%s\n", *to_exec);
     first_args[i] = *to_exec;
     to_exec++;
     i++;
@@ -179,10 +179,10 @@ char **get_pipe_command(char **to_exec, int *num_args) {
   *num_args = i;
   to_exec++;
   first_args[i] = NULL;
-  printf("pipe command: ");
-  print_args(first_args);
-  printf("rest:");
-  print_args(to_exec);
+  // printf("pipe command: ");
+  // print_args(first_args);
+  // printf("rest:");
+  // print_args(to_exec);
   return first_args;
 }
 
@@ -203,7 +203,7 @@ int fork_pipes (int n, char **args) { // Function based on code from http://stac
 
   /* Note the loop bound, we spawn here all, but the last stage of the pipeline.  */
   for (i = 0; i < n - 1; ++i) {
-    printf("fork_pipes loop i: %d\n", i);
+    // printf("fork_pipes loop i: %d\n", i);
     int pipe_code = pipe (fd);
     // Check for errors in pipe()
     if (pipe_code)
@@ -223,19 +223,44 @@ int fork_pipes (int n, char **args) { // Function based on code from http://stac
     /* f[1] is the write end of the pipe, we carry `in` from the prev iteration.  */
     char **first_args = get_pipe_command(args, &num_args);
     args += num_args+1;
-    printf("current command in fork: ");
-    print_args(first_args);
-    printf("to_exec in fork: ");
-    print_args(args);
+    // printf("current command in fork: ");
+    // print_args(first_args);
+    // printf("to_exec in fork: ");
+    // print_args(args);
 
     // Check for an ampersand
     block = (ampersand(first_args) == 0); // block if not a background process
 
     // Check for redirected input
     input = redirect_input(first_args, &input_filename);
+    switch(input) {
+      case -1:
+        printf("Syntax error!\n");
+        continue;
+        break;
+      case 0:
+        break;
+      case 1:
+        printf("Redirecting input from: %s\n", input_filename);
+        break;
+    }
 
     // Check for redirected output
     output = redirect_output(first_args, &output_filename);
+    switch(output) {
+      case -1:
+        printf("Syntax error!\n");
+        continue;
+        break;
+      case 0:
+        break;
+      case 1:
+        printf("Redirecting output to: %s\n", output_filename);
+        break;
+      case 2:
+        printf("Appending output to: %s\n", output_filename);
+        break;
+    }
 
     // spawn_proc (in, fd[1], first_args);
     do_command(first_args, block, 
@@ -277,27 +302,46 @@ int fork_pipes (int n, char **args) { // Function based on code from http://stac
   // if (in != 0)
   //   dup2 (in, 0);
 
-  printf("****");
-  print_args(args);
   /* Execute the last stage with the current process. */
   // Check for an ampersand
   block = (ampersand(args) == 0); // block if not a background process
 
-  // Check for redirected input
-  input = redirect_input(args, &input_filename);
+    // Check for redirected input
+    input = redirect_input(args, &input_filename);
+    switch(input) {
+      case -1:
+        printf("Syntax error!\n");
+        break;
+      case 0:
+        break;
+      case 1:
+        printf("Redirecting input from: %s\n", input_filename);
+        break;
+    }
 
-  // Check for redirected output
-  output = redirect_output(args, &output_filename);
+    // Check for redirected output
+    output = redirect_output(args, &output_filename);
+    switch(output) {
+      case -1:
+        printf("Syntax error!\n");
+        break;
+      case 0:
+        break;
+      case 1:
+        printf("Redirecting output to: %s\n", output_filename);
+        break;
+      case 2:
+        printf("Appending output to: %s\n", output_filename);
+        break;
+    }
 
-  int ret = do_command(args, block, 
+    // printf("****");
+    // print_args(args);
+
+    return do_command(args, block, 
                 input, input_filename, 
                 output, output_filename,
                 in,1,1);
-
-  // dup2(fd[0], 0);
-  // dup2(fd[0], 1);
-
-  return ret;
 }
 
 
@@ -330,7 +374,7 @@ int do_command(char **args, int block,
 
     // If we're coming from a pipe, handle I/O from in and out
     if(is_pipe) {
-      printf("Running command from pipe\n");
+      // printf("Running command from pipe\n");
       if (in != 0){
         dup2 (in, 0);
         close (in);
@@ -341,45 +385,36 @@ int do_command(char **args, int block,
         close (out);
       }
     // Otherwise, handle normally
-    } else {
+    } //else {
 
       // file redirection both in and out
-      print_args(args);
+      // print_args(args);
       if (input && (output >= 1)) { 
         freopen(input_filename, "r", stdin);
         if(output == 1) { // re-write file, or create
-          printf("input and output\n");
+          // printf("input and output\n");
           freopen(output_filename, "w+", stdout);
         } else { // append file, or create
-          printf("input and output append\n");
+          // printf("input and output append\n");
           freopen(output_filename, "a", stdout);
         }
       }
       // command with file redirection coming in
       else if (input) { 
-        printf("input\n");
+        // printf("input\n");
         freopen(input_filename, "r", stdin);
       }
       // command with output redirected to file
       else if (output >= 1) { 
         if(output == 1) { // re-write file, or create
-          printf("output\n");
+          // printf("output\n");
           freopen(output_filename, "w+", stdout);
         } else { // append file, or create
-          printf("output append\n");
+          // printf("output append\n");
           freopen(output_filename, "a", stdout);
         }
       }
-      // command with no arguments
-      else if (args[1] == NULL) { 
-        printf("no args\n");
-      } 
-      // command with arguments
-      else {
-        printf("args\n");
-      }
-
-    }
+    //}
     // execute the actual command
     execvp(args[0], args);
 
