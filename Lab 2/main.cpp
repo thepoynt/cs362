@@ -24,7 +24,7 @@ void printPrimes (const vector<int>& v){
 
 int seive(vector<int>& v) {
   int first = v[0];
-  primes.push_back(first);
+  // primes.push_back(first);
 
   // for(int i = 1; i < v.size(); i += first) {
   //   v.erase(v.begin()+i);
@@ -65,6 +65,7 @@ int main () {
 
 
   while(digits.size() > 0) {
+    primes.push_back(digits[0]);
     seive(digits);
   }
 
