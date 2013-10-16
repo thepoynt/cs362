@@ -12,6 +12,11 @@ using namespace std;
 vector<int> digits;
 vector<int> primes;
 
+void error(string msg) {
+  cout << msg <<"\n";
+  exit(1);
+}
+
 void printPrimes (const vector<int>& v){
   if(v.size() <= 20){
     for (int i=0; i<v.size();i++){
@@ -119,7 +124,7 @@ int run() {
   if (n < 0) {
     error("ERROR writing to socket");
   }
-  
+
   close(newsockfd);
   close(sockfd);
   return 0; 
