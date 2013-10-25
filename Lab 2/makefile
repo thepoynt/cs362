@@ -1,9 +1,10 @@
 CC = g++
 CFLAGS=-g 
 
-CCFILES = main.cpp
+all: server client
 
-all: link
+server:	main.cpp
+	$(CC) $(CFLAGS) -o server main.cpp
 
-link:	$(CCFILES)
-	$(CC) $(CFLAGS) -o run $(CCFILES)
+client: client.cpp
+	$(CC) $(CFLAGS) -o client client.cpp
