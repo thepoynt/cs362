@@ -18,6 +18,7 @@ using namespace std;
 
 vector<int> digits;
 vector<int> primes;
+int intSize = sizeof(int);
 
 int run();
 
@@ -192,17 +193,17 @@ int run() {
         // send over the size of the digits vector
         int temp = digits.size();
         uint32_t size = htonl(temp);
-        if(send(new_fd, &size, sizeof(size), 0) == -1)
+        if(send(new_fd, &size, intSize, 0) == -1)
             perror("error sending array size");
 
         // send over the digits vector
-        if(send(new_fd, &digits[0], digits.size()*4, 0) == -1)
+        if(send(new_fd, &digits[0], digits.size()*intSize, 0) == -1)
             perror("error sending array");
 
         // ====== Get vector back ======
 
         // get size of soon-to-come-in vector
-        if ((numbytes = recv(new_fd, &arraySize, 4, 0)) == -1) {
+        if ((numbytes = recv(new_fd, &arraySize, intSize, 0)) == -1) {
             perror("error receiving array size");
             exit(1);
         }
@@ -210,12 +211,20 @@ int run() {
         cout << "size of incoming array: " << size << "\n";
 
         // get digits vector
-        digits.resize(size);
-        if ((numbytes = recv(new_fd, &digits[0], size*4, 0)) == -1) {
+        numbytes = recv(new_fd, &digits[0], size*intSize, 0);
+        if (numbytes == -1) {
             perror("error receiving array");
             exit(1);
         }
-        digits[numbytes] = '\0';
+        while (numbytes != size*intSize) {
+            numbytes = recv(new_fd, &digits[numbytes], size*intSize, 0);
+        }
+        // digits.resize(size);
+        // if ((numbytes = recv(new_fd, &digits[0], size*intSize, 0)) == -1) {
+        //     perror("error receiving array");
+        //     exit(1);
+        // }
+        // digits[numbytes] = '\0';
         cout << "Received: \n";
         printPrimes(digits);
         cout << "-----------------------------\n\n";
@@ -229,8 +238,8 @@ int run() {
         }
       }
 
-      // Let client know we're done by sending 0 - DOESN'T WORK
-      if ((numbytes = recv(new_fd, NULL, 0, 0)) == -1) {
+      // Let client know we're done by sending 0
+      if (send(new_fd, NULL, 0, 0) == -1) {
         perror("error sending finished message to client");
         exit(1);
       }

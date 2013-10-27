@@ -16,6 +16,8 @@
 #define MAXDATASIZE 10000000 // max number of bytes we can get at once
 using namespace std;
 
+int intSize = sizeof(int);
+
 void printPrimes (const vector<int>& v){
   if(v.size() <= 20){
     for (int i=0; i<v.size();i++){
@@ -106,7 +108,7 @@ int main(int argc, char *argv[]) {
 
     while(true) {
         // get size of soon-to-come-in vector
-        if ((numbytes = recv(sockfd, &arraySize, 4, 0)) == -1) {
+        if ((numbytes = recv(sockfd, &arraySize, intSize, 0)) == -1) {
             perror("error receiving array size");
             exit(1);
         }
@@ -116,9 +118,13 @@ int main(int argc, char *argv[]) {
         // get digits vector
         vector<int> digits;
         digits.resize(size);
-        if ((numbytes = recv(sockfd, &digits[0], size*4, 0)) == -1) {
+        numbytes = recv(sockfd, &digits[0], size*intSize, 0);
+        if (numbytes == -1) {
             perror("error receiving array");
             exit(1);
+        }
+        while (numbytes != size*intSize) {
+            numbytes = recv(sockfd, &digits[numbytes], size*intSize, 0);
         }
         digits[numbytes] = '\0';
         cout << "\nReceived: \n";
@@ -132,13 +138,13 @@ int main(int argc, char *argv[]) {
         // send over the size of the digits vector
         int temp = digits.size();
         size = htonl(temp);
-        if(send(sockfd, &size, sizeof(size), 0) == -1)
+        if(send(sockfd, &size, intSize, 0) == -1)
             perror("error sending array size");
 
         cout << "size of array being written: " << digits.size();
 
         // send over the digits vector
-        if(send(sockfd, &digits[0], digits.size()*4, 0) == -1)
+        if(send(sockfd, &digits[0], digits.size()*intSize, 0) == -1)
         perror("error sending array");
 
         cout << "\n\n-----------------------------\n\n";
