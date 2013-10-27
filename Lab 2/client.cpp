@@ -12,39 +12,60 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <math.h>
 #define PORT "9123" // the port client will be connecting to
-#define MAXDATASIZE 10000000 // max number of bytes we can get at once
-using namespace std;
 
 int intSize = sizeof(int);
 
-void printPrimes (const vector<int>& v){
+void printPrimes (const std::vector<int>& v){
   if(v.size() <= 20){
     for (int i=0; i<v.size();i++){
-      cout << v[i] << " ";
+      std::cout << v[i] << " ";
     }
   } else {
     for (int i=0; i<10;i++){
-      cout << v[i] << " ";
+      std::cout << v[i] << " ";
     }
-    cout << "... ";
+    std::cout << "... ";
     for (int i=(v.size()-10); i<v.size();i++){
-      cout << v[i] << " ";
+      std::cout << v[i] << " ";
     }
   }
-  cout << "\n\n";
+  std::cout << "\n\n";
 }
 
-int seive(vector<int>& v) {
-  int first = v[0];
-
-  for(int i = 0; i < v.size(); i++) {
-    if((v[i] % first) == 0) {
-      v.erase(v.begin()+i);
+void printInOutVector (const std::vector<int>& v){
+  if(v.size() <= 10){
+    for (int i=0; i<v.size();i++){
+      std::cout << v[i] << " ";
+    }
+  } else {
+    for (int i=0; i<5;i++){
+      std::cout << v[i] << " ";
+    }
+    std::cout << "... ";
+    for (int i=(v.size()-5); i<v.size();i++){
+      std::cout << v[i] << " ";
     }
   }
+  std::cout << "\n\n";
+}
 
-  return 0;
+int seive(std::vector<int>& v) {
+    int first = v[0];
+    int size = v.size();
+
+    int i = 0;
+    while (v[i] < first*first)
+        i++;
+
+    for( ; i < size; i++) {
+        if((v[i] % first) == 0) {
+          v.erase(v.begin()+i);
+        }
+    }
+
+    return 0;
 }
 
 void *get_in_addr(struct sockaddr *sa) {
@@ -64,7 +85,7 @@ int is_big_endian(void){
 }
 
 int main(int argc, char *argv[]) {
-    int sockfd, numbytes, arraySize;
+    int sockfd, numrecvbytes, numsendbytes, arraySize;
     struct addrinfo hints, *servinfo, *p;
     int rv;
     char s[INET6_ADDRSTRLEN];
@@ -108,46 +129,64 @@ int main(int argc, char *argv[]) {
 
     while(true) {
         // get size of soon-to-come-in vector
-        if ((numbytes = recv(sockfd, &arraySize, intSize, 0)) == -1) {
+        if ((numrecvbytes = recv(sockfd, &arraySize, intSize, 0)) == -1) {
             perror("error receiving array size");
             exit(1);
         }
-        uint32_t size = ntohl(arraySize);
-        cout << "size of incoming array: " << size << "\n";
+        int size = arraySize;
+        // cout << "size of incoming array: " << size << "\n";
 
         // get digits vector
-        vector<int> digits;
+        std::vector<int> digits;
         digits.resize(size);
-        numbytes = recv(sockfd, &digits[0], size*intSize, 0);
-        if (numbytes == -1) {
+        // for (int i=0; i<size; i++) {
+        //     numrecvbytes = recv(sockfd, &digits[i], intSize, 0);
+        //     i++;
+        // }
+        // if ((numrecvbytes = recv(sockfd, &digits[0], digits.size()*intSize, 0)) == -1) {
+        //     perror("error receiving array");
+        //     exit(1);
+        // }
+        numrecvbytes = recv(sockfd, &digits[0], size*intSize, 0);
+        if (numrecvbytes == -1) {
             perror("error receiving array");
             exit(1);
         }
-        while (numbytes != size*intSize) {
-            numbytes = recv(sockfd, &digits[numbytes], size*intSize, 0);
+        while (numrecvbytes < size*intSize) {
+            numrecvbytes += recv(sockfd, &digits[numrecvbytes/intSize], size*intSize - numrecvbytes, 0);
         }
-        digits[numbytes] = '\0';
-        cout << "\nReceived: \n";
-        printPrimes(digits);
+        std::cout << "\nReceived: \n";
+        printInOutVector(digits);
+        // cout << "received " << numrecvbytes << " bytes of data\n\n";
 
         // seive
         seive(digits);
-        cout << "Sending: \n";
-        printPrimes(digits);
+        std::cout << "Sending: \n";
+        printInOutVector(digits);
 
         // send over the size of the digits vector
-        int temp = digits.size();
-        size = htonl(temp);
+        size = digits.size();
+        // size = htonl(temp);
         if(send(sockfd, &size, intSize, 0) == -1)
             perror("error sending array size");
 
-        cout << "size of array being written: " << digits.size();
+        // cout << "size of array being written: " << digits.size();
 
         // send over the digits vector
-        if(send(sockfd, &digits[0], digits.size()*intSize, 0) == -1)
-        perror("error sending array");
+        // for (int i=0; i<size; i++) {
+        //     send(sockfd, &digits[i], intSize, 0);
+        // }
+        numsendbytes = send(sockfd, &digits[0], size*intSize, 0);
+        if(numsendbytes == -1)
+            perror("error sending array");
+        while (numsendbytes < size*intSize) {
+            numsendbytes += send(sockfd, &digits[numsendbytes/intSize], size*intSize - numsendbytes, 0);
+        }
+        // cout << "sent " << numsendbytes << " bytes of data\n\n";
+        // if(send(sockfd, &digits[0], digits.size()*intSize, 0) == -1)
+        // perror("error sending array");
 
-        cout << "\n\n-----------------------------\n\n";
+        // cout << "\n\n-----------------------------\n\n";
     }
 
     close(sockfd);

@@ -12,37 +12,63 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <time.h>
+#include <math.h>
 #define PORT "9123" // the port users will be connecting to
 #define BACKLOG 1 // how many pending connections queue will hold
-using namespace std;
 
-vector<int> digits;
-vector<int> primes;
+std::vector<int> digits;
+std::vector<int> primes;
 int intSize = sizeof(int);
+clock_t start;
+double duration;
+int max;
 
 int run();
 
-void printPrimes (const vector<int>& v){
+void printPrimes (const std::vector<int>& v){
   if(v.size() <= 20){
     for (int i=0; i<v.size();i++){
-      cout << v[i] << " ";
+      std::cout << v[i] << " ";
     }
   } else {
     for (int i=0; i<10;i++){
-      cout << v[i] << " ";
+      std::cout << v[i] << " ";
     }
-    cout << "... ";
+    std::cout << "... ";
     for (int i=(v.size()-10); i<v.size();i++){
-      cout << v[i] << " ";
+      std::cout << v[i] << " ";
     }
   }
-  cout << "\n\n";
+  std::cout << "\n\n";
 }
 
-int seive(vector<int>& v) {
-  int first = v[0];
+void printInOutVector (const std::vector<int>& v){
+  if(v.size() <= 10){
+    for (int i=0; i<v.size();i++){
+      std::cout << v[i] << " ";
+    }
+  } else {
+    for (int i=0; i<5;i++){
+      std::cout << v[i] << " ";
+    }
+    std::cout << "... ";
+    for (int i=(v.size()-5); i<v.size();i++){
+      std::cout << v[i] << " ";
+    }
+  }
+  std::cout << "\n\n";
+}
 
-  for(int i = 0; i < v.size(); i++) {
+int seive(std::vector<int>& v) {
+  int first = v[0];
+  int size = v.size();
+
+  int i = 0;
+  while (v[i] < first*first)
+    i++;
+
+  for( ; i < size; i++) {
     if((v[i] % first) == 0) {
       v.erase(v.begin()+i);
     }
@@ -53,39 +79,30 @@ int seive(vector<int>& v) {
 
 
 int main () {
-  int max;
-  cout << "Please enter an integer value: ";
-  cin >> max;
+    start = clock();
+    std::cout << "Please enter an integer value: ";
+    std::cin >> max;
 
-  // if the number passed in is less than 2, then there are no primes
-  if (max < 2) {
+    // if the number passed in is less than 2, then there are no primes
+    if (max < 2) {
     return 0;
-  }
-
-  // populate the digits with the pool of numbers up to max. This is what will be subtracted from
-  for (int i =2; i <= max; i++ ) {
-    digits.push_back(i);
-  }
-  // start the primes list with 2
-  primes.push_back(2);
- 
-  // start off by getting rid of all even numbers before sending to first socket
-  for(int i = 0; i < digits.size(); i++) {
-    if(digits[i] % 2 == 0) {
-      digits.erase(digits.begin()+i);
     }
-  }
 
+    // populate the digits with the pool of numbers up to max. This is what will be subtracted from
+    for (int i =2; i <= max; i++ ) {
+        digits.push_back(i);
+    }
+    // start the primes list with 2
+    primes.push_back(2);
 
-  // while(digits.size() > 0) {
-  //   primes.push_back(digits[0]);
-  //   seive(digits);
-  // }
-
-  // cout << "\nServer: All the primes up to " << max << " are:\n";
-  // printPrimes(primes);
-  run();
-  return 0; 
+    // start off by getting rid of all even numbers before sending to first socket
+    for(int i = 0; i < digits.size(); i++) {
+        if(digits[i] % 2 == 0) {
+            digits.erase(digits.begin()+i);
+        }
+    }
+    run();
+    return 0; 
 }
 
 void sigchld_handler(int s) {
@@ -110,7 +127,7 @@ int is_big_endian(void){
 }
 
 int run() {
-  int numbytes, arraySize;
+  int numrecvbytes, numsendbytes, arraySize;
   int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
   struct addrinfo hints, *servinfo, *p;
   struct sockaddr_storage their_addr; // connector's address information
@@ -179,55 +196,68 @@ int run() {
     if (!fork()) { // this is the child process
       close(sockfd); // child doesn't need the listener
 
-      while(digits.size() > 0) {
+      while((digits.size() > 0) && (digits[0] < sqrt(max))) {
 
         // Save next prime - first element of digits will be next prime
         primes.push_back(digits[0]);
 
         // ====== Send vector to client ======
 
-        cout << "size of array being written: " << digits.size();
-        cout << "\nSending: \n";
-        printPrimes(digits);
-
         // send over the size of the digits vector
-        int temp = digits.size();
-        uint32_t size = htonl(temp);
+        int size = digits.size();
+        // uint32_t size = htonl(temp);
         if(send(new_fd, &size, intSize, 0) == -1)
             perror("error sending array size");
+        // cout << "size of array being written: " << size;
 
         // send over the digits vector
-        if(send(new_fd, &digits[0], digits.size()*intSize, 0) == -1)
+        std::cout << "\nSending: \n";
+        printInOutVector(digits);
+        // for (int i=0; i<size; i++) {
+        //     send(new_fd, &digits[i], intSize, 0);
+        // }
+        numsendbytes = send(new_fd, &digits[0], size*intSize, 0);
+        if(numsendbytes == -1)
             perror("error sending array");
+        while (numsendbytes < size*intSize) {
+            numsendbytes += send(new_fd, &digits[numsendbytes/intSize], size*intSize - numsendbytes, 0);
+        }
+        // cout << "sent " << numsendbytes << " bytes of data\n\n";
 
         // ====== Get vector back ======
 
         // get size of soon-to-come-in vector
-        if ((numbytes = recv(new_fd, &arraySize, intSize, 0)) == -1) {
+        if ((numrecvbytes = recv(new_fd, &arraySize, intSize, 0)) == -1) {
             perror("error receiving array size");
             exit(1);
         }
-        size = ntohl(arraySize);
-        cout << "size of incoming array: " << size << "\n";
+        size = arraySize;
+        // cout << "size of incoming array: " << size << "\n";
 
         // get digits vector
-        numbytes = recv(new_fd, &digits[0], size*intSize, 0);
-        if (numbytes == -1) {
+        digits.resize(size);
+        // for (int i=0; i<size; i++) {
+        //     numrecvbytes = recv(new_fd, &digits[i], intSize, 0);
+        //     i++;
+        // }
+        numrecvbytes = recv(new_fd, &digits[0], size*intSize, 0);
+        if (numrecvbytes == -1) {
             perror("error receiving array");
             exit(1);
         }
-        while (numbytes != size*intSize) {
-            numbytes = recv(new_fd, &digits[numbytes], size*intSize, 0);
+        while (numrecvbytes < size*intSize) {
+            numrecvbytes += recv(new_fd, &digits[numrecvbytes/intSize], size*intSize - numrecvbytes, 0);
         }
-        // digits.resize(size);
-        // if ((numbytes = recv(new_fd, &digits[0], size*intSize, 0)) == -1) {
+
+        // cout << "received " << numrecvbytes << " bytes of data\n\n";
+        // if ((numrecvbytes = recv(new_fd, &digits[0], size*intSize, 0)) == -1) {
         //     perror("error receiving array");
         //     exit(1);
         // }
-        // digits[numbytes] = '\0';
-        cout << "Received: \n";
-        printPrimes(digits);
-        cout << "-----------------------------\n\n";
+        // digits[numrecvbytes] = '\0';
+        std::cout << "Received: \n";
+        printInOutVector(digits);
+        // cout << "-----------------------------\n\n";
 
         // store first element in primes
         primes.push_back(digits[0]);
@@ -244,8 +274,15 @@ int run() {
         exit(1);
       }
 
-      cout << "Final list of primes: ";
+      for (int i =0; i <= digits.size(); i++ ) {
+        primes.push_back(digits[i]);
+      }
+
+      std::cout << "Final list of primes: ";
       printPrimes(primes);
+      std::cout << "Number of primes: " << primes.size();
+      duration = ( clock() - start ) / (double) CLOCKS_PER_SEC;
+      std::cout << "Time elapsed: " << duration;
 
       close(new_fd);
       exit(0);
@@ -254,53 +291,6 @@ int run() {
   }
   return 0;
 
-
-
-  // int sockfd, newsockfd, portno;
-  // socklen_t clilen;
-  // char buffer[32];
-  // struct sockaddr_in serv_addr, cli_addr;
-  // int n;
-
-  // // Make the socket
-  // sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  // if (sockfd < 0) {
-  //   error("ERROR opening socket");
-  // }
-
-  // bzero((char *) &serv_addr, sizeof(serv_addr));
-
-  // portno = 9123;
-  // serv_addr.sin_family = AF_INET;
-  // serv_addr.sin_addr.s_addr = INADDR_ANY;
-  // serv_addr.sin_port = htons(portno);
-
-  // if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-  //   error("ERROR on binding");
-  // }
-
-  // listen(sockfd,5);
-  // clilen = sizeof(cli_addr);
-  // newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-  // if (newsockfd < 0) {
-  //   error("ERROR on accept");
-  // }
-
-  // bzero(buffer,1000);
-  // n = read(newsockfd,buffer,999);
-  // if (n < 0) {
-  //   error("ERROR reading from socket");
-  // }
-  // printf("Here is the message: %s\n",buffer);
-
-  // n = write(newsockfd,"I got your message",18);
-  // if (n < 0) {
-  //   error("ERROR writing to socket");
-  // }
-
-  // close(newsockfd);
-  // close(sockfd);
-  // return 0; 
 }
 
 
