@@ -7,9 +7,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <unistd.h>
 #include <errno.h>
-#include <string.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/wait.h>
@@ -22,11 +20,6 @@ vector<int> digits;
 vector<int> primes;
 
 int run();
-
-void error(string msg) {
-  cout << msg <<"\n";
-  exit(1);
-}
 
 void printPrimes (const vector<int>& v){
   if(v.size() <= 20){
@@ -83,13 +76,13 @@ int main () {
   }
 
 
-  while(digits.size() > 0) {
-    primes.push_back(digits[0]);
-    seive(digits);
-  }
+  // while(digits.size() > 0) {
+  //   primes.push_back(digits[0]);
+  //   seive(digits);
+  // }
 
-  cout << "\nAll the primes up to " << max << " are:\n";
-  printPrimes(primes);
+  // cout << "\nServer: All the primes up to " << max << " are:\n";
+  // printPrimes(primes);
   run();
   return 0; 
 }
@@ -116,6 +109,7 @@ int is_big_endian(void){
 }
 
 int run() {
+  int numbytes, arraySize;
   int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
   struct addrinfo hints, *servinfo, *p;
   struct sockaddr_storage their_addr; // connector's address information
@@ -180,14 +174,72 @@ int run() {
       continue;
     }
     inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-    printf("server: got connection from %s\n", s);
+    printf("server: got connection from %s\n\n", s);
     if (!fork()) { // this is the child process
       close(sockfd); // child doesn't need the listener
-    
-    if (send(new_fd, "Hello, world!", 13, 0) == -1)
-      perror("send");
-    close(new_fd);
-    exit(0);
+
+      while(digits.size() > 0) {
+
+        // Save next prime - first element of digits will be next prime
+        primes.push_back(digits[0]);
+
+        // ====== Send vector to client ======
+
+        cout << "size of array being written: " << digits.size();
+        cout << "\nSending: \n";
+        printPrimes(digits);
+
+        // send over the size of the digits vector
+        int temp = digits.size();
+        uint32_t size = htonl(temp);
+        if(send(new_fd, &size, sizeof(size), 0) == -1)
+            perror("error sending array size");
+
+        // send over the digits vector
+        if(send(new_fd, &digits[0], digits.size()*4, 0) == -1)
+            perror("error sending array");
+
+        // ====== Get vector back ======
+
+        // get size of soon-to-come-in vector
+        if ((numbytes = recv(new_fd, &arraySize, 4, 0)) == -1) {
+            perror("error receiving array size");
+            exit(1);
+        }
+        size = ntohl(arraySize);
+        cout << "size of incoming array: " << size << "\n";
+
+        // get digits vector
+        digits.resize(size);
+        if ((numbytes = recv(new_fd, &digits[0], size*4, 0)) == -1) {
+            perror("error receiving array");
+            exit(1);
+        }
+        digits[numbytes] = '\0';
+        cout << "Received: \n";
+        printPrimes(digits);
+        cout << "-----------------------------\n\n";
+
+        // store first element in primes
+        primes.push_back(digits[0]);
+
+        // seive
+        if (digits.size() > 0) {
+            seive(digits);
+        }
+      }
+
+      // Let client know we're done by sending 0 - DOESN'T WORK
+      if ((numbytes = recv(new_fd, NULL, 0, 0)) == -1) {
+        perror("error sending finished message to client");
+        exit(1);
+      }
+
+      cout << "Final list of primes: ";
+      printPrimes(primes);
+
+      close(new_fd);
+      exit(0);
     }
     close(new_fd); // parent doesn't need this
   }

@@ -1,19 +1,48 @@
+#include <iostream>
+#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <sys/types.h>
+#include <unistd.h>
+#include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h> 
 #include <errno.h>
+#include <netdb.h>
 #include <arpa/inet.h>
+#include <sys/wait.h>
+#include <signal.h>
 #define PORT "9123" // the port client will be connecting to
 #define MAXDATASIZE 10000000 // max number of bytes we can get at once
+using namespace std;
 
-void error(const char *msg) {
-    perror(msg);
-    exit(0);
+void printPrimes (const vector<int>& v){
+  if(v.size() <= 20){
+    for (int i=0; i<v.size();i++){
+      cout << v[i] << " ";
+    }
+  } else {
+    for (int i=0; i<10;i++){
+      cout << v[i] << " ";
+    }
+    cout << "... ";
+    for (int i=(v.size()-10); i<v.size();i++){
+      cout << v[i] << " ";
+    }
+  }
+  cout << "\n\n";
+}
+
+int seive(vector<int>& v) {
+  int first = v[0];
+
+  for(int i = 0; i < v.size(); i++) {
+    if((v[i] % first) == 0) {
+      v.erase(v.begin()+i);
+    }
+  }
+
+  return 0;
 }
 
 void *get_in_addr(struct sockaddr *sa) {
@@ -33,8 +62,7 @@ int is_big_endian(void){
 }
 
 int main(int argc, char *argv[]) {
-    int sockfd, numbytes;
-    char buf[MAXDATASIZE];
+    int sockfd, numbytes, arraySize;
     struct addrinfo hints, *servinfo, *p;
     int rv;
     char s[INET6_ADDRSTRLEN];
@@ -76,13 +104,46 @@ int main(int argc, char *argv[]) {
     printf("client: connecting to %s\n", s);
     freeaddrinfo(servinfo); // all done with this structure
 
-    if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-        perror("recv");
-        exit(1);
+    while(true) {
+        // get size of soon-to-come-in vector
+        if ((numbytes = recv(sockfd, &arraySize, 4, 0)) == -1) {
+            perror("error receiving array size");
+            exit(1);
+        }
+        uint32_t size = ntohl(arraySize);
+        cout << "size of incoming array: " << size << "\n";
+
+        // get digits vector
+        vector<int> digits;
+        digits.resize(size);
+        if ((numbytes = recv(sockfd, &digits[0], size*4, 0)) == -1) {
+            perror("error receiving array");
+            exit(1);
+        }
+        digits[numbytes] = '\0';
+        cout << "\nReceived: \n";
+        printPrimes(digits);
+
+        // seive
+        seive(digits);
+        cout << "Sending: \n";
+        printPrimes(digits);
+
+        // send over the size of the digits vector
+        int temp = digits.size();
+        size = htonl(temp);
+        if(send(sockfd, &size, sizeof(size), 0) == -1)
+            perror("error sending array size");
+
+        cout << "size of array being written: " << digits.size();
+
+        // send over the digits vector
+        if(send(sockfd, &digits[0], digits.size()*4, 0) == -1)
+        perror("error sending array");
+
+        cout << "\n\n-----------------------------\n\n";
     }
 
-    buf[numbytes] = '\0';
-    printf("client: received '%s'\n",buf);
     close(sockfd);
     return 0;
 }

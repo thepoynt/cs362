@@ -8,3 +8,6 @@ server:	main.cpp
 
 client: client.cpp
 	$(CC) $(CFLAGS) -o client client.cpp
+
+clean:
+	rm -r *.dSYM server client
