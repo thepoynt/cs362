@@ -29,7 +29,7 @@ INSTALLATION AND EXECUTION
 	3) on one, execute "./serversol", then after being prompted, enter an integer to be used as the max value
 	4) on the other, execute "./clientsol" followed by the IP/hostname of the server. 
 		(ex: "./clientsol localhost") 
-	
+   - NOTE: these can be interchanged (i.e. ./client on Linux and ./serversol on Solaris will still work together, assuming use of the correct IP/hostname)
 
 BUGS
 
