@@ -1,4 +1,3 @@
-
      _ ____  ____
 	| |  _ \/ ___|
 	| | |_| |/
@@ -18,7 +17,11 @@ AUTHORS
 
 
 INSTALLATION AND EXECUTION
-	execute "make" in the program's directory to compile. Execute "./run" to run the program.
+	1) execute "make" in the program's directory to compile. 
+	2) have 2 separate instances of putty running (or whichever client you choose to use)
+	3) on one, execute "./server", then after being prompted, enter an integer to be used as the max value
+	4) on the other, execute "./client" followed by the IP/hostname of the server. 
+		(ex: "./client localhost")
 	
 
 BUGS
