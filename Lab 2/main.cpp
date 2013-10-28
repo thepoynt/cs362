@@ -20,8 +20,7 @@
 std::vector<int> digits;
 std::vector<int> primes;
 int intSize = sizeof(int);
-clock_t start;
-double duration;
+time_t start,end;
 int max;
 
 int run();
@@ -61,26 +60,29 @@ void printInOutVector (const std::vector<int>& v){
 }
 
 int seive(std::vector<int>& v) {
-  int first = v[0];
-  int size = v.size();
+    int first = v[0];
+    int size = v.size();
+    std::vector<int> newV;
 
-  int i = 0;
-  while (v[i] < first*first)
-    i++;
-
-  for( ; i < size; i++) {
-    if((v[i] % first) == 0) {
-      v.erase(v.begin()+i);
+    for(int i = 0; i < size; i++) {
+        if((v[i] % first) == 0) {
+            v[i] = 0;
+        }
     }
-  }
+    for(int i = 0; i < size; i++) {
+        if(v[i] != 0) {
+            newV.push_back(v[i]);
+        }
+    }
 
-  return 0;
+    v = newV;
+
+    return 0;
 }
 
 
 int main () {
-    start = clock();
-    std::cout << "Please enter an integer value: ";
+    printf("Please enter an integer value: ");
     std::cin >> max;
 
     // if the number passed in is less than 2, then there are no primes
@@ -89,18 +91,12 @@ int main () {
     }
 
     // populate the digits with the pool of numbers up to max. This is what will be subtracted from
-    for (int i =2; i <= max; i++ ) {
+    for (int i =3; i <= max; i += 2 ) {
         digits.push_back(i);
     }
     // start the primes list with 2
     primes.push_back(2);
 
-    // start off by getting rid of all even numbers before sending to first socket
-    for(int i = 0; i < digits.size(); i++) {
-        if(digits[i] % 2 == 0) {
-            digits.erase(digits.begin()+i);
-        }
-    }
     run();
     return 0; 
 }
@@ -196,6 +192,8 @@ int run() {
     if (!fork()) { // this is the child process
       close(sockfd); // child doesn't need the listener
 
+      time (&start); // start timer
+
       while((digits.size() > 0) && (digits[0] < sqrt(max))) {
 
         // Save next prime - first element of digits will be next prime
@@ -203,69 +201,64 @@ int run() {
 
         // ====== Send vector to client ======
 
-        // send over the size of the digits vector
-        int size = digits.size();
-        // uint32_t size = htonl(temp);
-        if(send(new_fd, &size, intSize, 0) == -1)
-            perror("error sending array size");
-        // cout << "size of array being written: " << size;
+            // send over the size of the digits vector
+            int size = digits.size();
+            // uint32_t size = htonl(temp); //encode size
+            if(send(new_fd, &size, intSize, 0) == -1)
+                perror("error sending array size");
 
-        // send over the digits vector
-        std::cout << "\nSending: \n";
-        printInOutVector(digits);
-        // for (int i=0; i<size; i++) {
-        //     send(new_fd, &digits[i], intSize, 0);
-        // }
-        numsendbytes = send(new_fd, &digits[0], size*intSize, 0);
-        if(numsendbytes == -1)
-            perror("error sending array");
-        while (numsendbytes < size*intSize) {
-            numsendbytes += send(new_fd, &digits[numsendbytes/intSize], size*intSize - numsendbytes, 0);
-        }
-        // cout << "sent " << numsendbytes << " bytes of data\n\n";
+            // send over the digits vector
+            printf("\nSending: \n");
+            printInOutVector(digits);
+            printf("----------------------------------------\n\n");
+            
+            // for (int i = 0; i < size; i++) { // encode vector
+            //     digits[i] = htonl(digits[i]);
+            // }
+            printf("Actually sending encoded data now...");
+            numsendbytes = send(new_fd, &digits[0], size*intSize, 0);
+            if(numsendbytes == -1)
+                perror("error sending array");
+            while (numsendbytes < size*intSize) {
+                numsendbytes += send(new_fd, &digits[numsendbytes/intSize], size*intSize - numsendbytes, 0);
+            }
 
         // ====== Get vector back ======
 
-        // get size of soon-to-come-in vector
-        if ((numrecvbytes = recv(new_fd, &arraySize, intSize, 0)) == -1) {
-            perror("error receiving array size");
-            exit(1);
-        }
-        size = arraySize;
-        // cout << "size of incoming array: " << size << "\n";
+            // get size of soon-to-come-in vector
+            if ((numrecvbytes = recv(new_fd, &arraySize, intSize, 0)) == -1) {
+                perror("error receiving array size");
+                exit(1);
+            }
+            // size = ntohl(arraySize); //decode size
+            size = arraySize;
 
-        // get digits vector
-        digits.resize(size);
-        // for (int i=0; i<size; i++) {
-        //     numrecvbytes = recv(new_fd, &digits[i], intSize, 0);
-        //     i++;
-        // }
-        numrecvbytes = recv(new_fd, &digits[0], size*intSize, 0);
-        if (numrecvbytes == -1) {
-            perror("error receiving array");
-            exit(1);
-        }
-        while (numrecvbytes < size*intSize) {
-            numrecvbytes += recv(new_fd, &digits[numrecvbytes/intSize], size*intSize - numrecvbytes, 0);
-        }
+            // get digits vector
+            digits.resize(size);
+            numrecvbytes = recv(new_fd, &digits[0], size*intSize, 0);
 
-        // cout << "received " << numrecvbytes << " bytes of data\n\n";
-        // if ((numrecvbytes = recv(new_fd, &digits[0], size*intSize, 0)) == -1) {
-        //     perror("error receiving array");
-        //     exit(1);
-        // }
-        // digits[numrecvbytes] = '\0';
-        std::cout << "Received: \n";
-        printInOutVector(digits);
-        // cout << "-----------------------------\n\n";
+            if (numrecvbytes == -1) {
+                perror("error receiving array");
+                exit(1);
+            }
+            while (numrecvbytes < size*intSize) {
+                numrecvbytes += recv(new_fd, &digits[numrecvbytes/intSize], size*intSize - numrecvbytes, 0);
+            }
+            printf("Intitial receive. Now to decode...");
+            // for (int i = 0; i < size; i++) { // decode vector
+            //     digits[i] = ntohl(digits[i]);
+            // }
 
-        // store first element in primes
-        primes.push_back(digits[0]);
+            std::cout << "Received: \n";
+            printInOutVector(digits);
 
-        // seive
-        if (digits.size() > 0) {
-            seive(digits);
-        }
+            // store first element in primes
+            primes.push_back(digits[0]);
+
+            // seive
+            if (digits.size() > 0) {
+                seive(digits);
+            }
       }
 
       // Let client know we're done by sending 0
@@ -274,15 +267,16 @@ int run() {
         exit(1);
       }
 
-      for (int i =0; i <= digits.size(); i++ ) {
+      for (int i =0; i < digits.size(); i++ ) {
         primes.push_back(digits[i]);
       }
 
       std::cout << "Final list of primes: ";
       printPrimes(primes);
       std::cout << "Number of primes: " << primes.size();
-      duration = ( clock() - start ) / (double) CLOCKS_PER_SEC;
-      std::cout << "Time elapsed: " << duration;
+      time (&end);
+      double duration = difftime (end,start);
+      std::cout << "\nTime elapsed: " << duration;
 
       close(new_fd);
       exit(0);
