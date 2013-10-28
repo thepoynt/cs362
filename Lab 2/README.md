@@ -17,11 +17,18 @@ AUTHORS
 
 
 INSTALLATION AND EXECUTION
-	1) execute "make" in the program's directory to compile. 
+   - Linux (thingies)
+	1) execute "make -f makefileLinux" in the program's directory to compile. 
 	2) have 2 separate instances of putty running (or whichever client you choose to use)
 	3) on one, execute "./server", then after being prompted, enter an integer to be used as the max value
 	4) on the other, execute "./client" followed by the IP/hostname of the server. 
 		(ex: "./client localhost")
+   - Solaris (Shiva)
+   	1) execute "make -f makefileSolaris" in the program's directory to compile. 
+	2) have 2 separate instances of putty running (or whichever client you choose to use)
+	3) on one, execute "./serversol", then after being prompted, enter an integer to be used as the max value
+	4) on the other, execute "./clientsol" followed by the IP/hostname of the server. 
+		(ex: "./clientsol localhost") 
 	
 
 BUGS
