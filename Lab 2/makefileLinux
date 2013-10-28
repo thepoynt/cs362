@@ -1,12 +1,12 @@
 CC = g++
-CFLAGS=-g -lm -lsocket -lnsl
+CFLAGS= -B -g
 
 all: server client
 
-server:	main.cpp
+server:
 	$(CC) $(CFLAGS) -o server main.cpp
 
-client: client.cpp
+client:
 	$(CC) $(CFLAGS) -o client client.cpp
 
 clean:

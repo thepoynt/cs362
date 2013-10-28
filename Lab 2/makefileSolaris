@@ -1,0 +1,13 @@
+CC = g++
+CFLAGS= -B -lm -lsocket -lnsl
+
+all: serversol clientsol
+
+serversol:	
+	$(CC) $(CFLAGS) -o serversol main.cpp
+
+clientsol: 
+	$(CC) $(CFLAGS) -o clientsol client.cpp
+
+clean:
+	rm -r serversol clientsol
