@@ -51,7 +51,7 @@ void printInOutVector (const std::vector<int>& v){
   printf("\n\n");
 }
 
-int seive(std::vector<int>& v) {
+int sieve(std::vector<int>& v) {
     int first = v[0];
     int size = v.size();
     std::vector<int> newV;
@@ -68,32 +68,6 @@ int seive(std::vector<int>& v) {
     }
 
     v = newV;
-
-    // for(int i = 0; i < size; i++) {
-    //     if((v[i] % first) == 0) {
-    //         v.erase(v.begin()+i);
-    //     }
-    // }
-
-    // std::cout << "In Seive\n";
-    // int first = v[0];
-    // int size = v.size();
-    // int squared = first*first;
-    // std::cout << "First: " << first << "   Size: " << size << "   Squared: " << squared;
-
-
-    // int i = 0;
-    // std::cout << "\nelement at " << i << ": " << v[i];
-    // while ((i < size) && (v[i] < squared)) {
-    //     i++;
-    //     std::cout << "\nelement at " << i << ": " << v[i];
-    // }
-    // for( i = i-1; i < size; i++) {
-    //     if((v[i] % first) == 0) {
-    //         v.erase(v.begin()+i);
-    //         i--;
-    //     }
-    // }
 
     return 0;
 }
@@ -164,8 +138,7 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
         // decode size
-        // int size = ntohl(arraySize);
-        int size = arraySize;
+        int size = ntohl(arraySize);
 
         // get digits vector
         std::vector<int> digits;
@@ -178,31 +151,28 @@ int main(int argc, char *argv[]) {
         while (numrecvbytes < size*intSize) {
             numrecvbytes += recv(sockfd, &digits[numrecvbytes/intSize], size*intSize - numrecvbytes, 0);
         }
-        printf("Intitial receive. Now to decode...");
-        // for (int i = 0; i < size; i++) { // decode vector
-        //     digits[i] = ntohl(digits[i]);
-        // }
+        
+        for (int i = 0; i < size; i++) { // decode vector
+            digits[i] = ntohl(digits[i]);
+        }
         printf("\nReceived: \n");
         printInOutVector(digits);
 
-        // seive
-        seive(digits);
+        // sieve
+        sieve(digits);
 
         // send over the size of the digits vector
-        // int temp = digits.size();
-        // encode size
-        // size = htonl(temp);
         size = digits.size();
-        if(send(sockfd, &size, intSize, 0) == -1)
+        int encSize = htonl(size); // encode size
+        if(send(sockfd, &encSize, intSize, 0) == -1)
             perror("error sending array size");
 
         // send over the vector
         printf("Sending: \n");
         printInOutVector(digits);
-        // for (int i = 0; i < size; i++) { // encode vector
-        //     digits[i] = htonl(digits[i]);
-        // }
-        printf("Actually sending encoded data now...");
+        for (int i = 0; i < size; i++) { // encode vector
+            digits[i] = htonl(digits[i]);
+        }
         numsendbytes = send(sockfd, &digits[0], size*intSize, 0);
         if(numsendbytes == -1)
             perror("error sending array");

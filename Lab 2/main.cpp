@@ -59,7 +59,7 @@ void printInOutVector (const std::vector<int>& v){
   std::cout << "\n\n";
 }
 
-int seive(std::vector<int>& v) {
+int sieve(std::vector<int>& v) {
     int first = v[0];
     int size = v.size();
     std::vector<int> newV;
@@ -203,8 +203,8 @@ int run() {
 
             // send over the size of the digits vector
             int size = digits.size();
-            // uint32_t size = htonl(temp); //encode size
-            if(send(new_fd, &size, intSize, 0) == -1)
+            int encSize = htonl(size); //encode size
+            if(send(new_fd, &encSize, intSize, 0) == -1)
                 perror("error sending array size");
 
             // send over the digits vector
@@ -212,10 +212,10 @@ int run() {
             printInOutVector(digits);
             printf("----------------------------------------\n\n");
             
-            // for (int i = 0; i < size; i++) { // encode vector
-            //     digits[i] = htonl(digits[i]);
-            // }
-            printf("Actually sending encoded data now...");
+            for (int i = 0; i < size; i++) { // encode vector
+                digits[i] = htonl(digits[i]);
+            }
+
             numsendbytes = send(new_fd, &digits[0], size*intSize, 0);
             if(numsendbytes == -1)
                 perror("error sending array");
@@ -230,8 +230,7 @@ int run() {
                 perror("error receiving array size");
                 exit(1);
             }
-            // size = ntohl(arraySize); //decode size
-            size = arraySize;
+            size = ntohl(arraySize); //decode size
 
             // get digits vector
             digits.resize(size);
@@ -244,10 +243,10 @@ int run() {
             while (numrecvbytes < size*intSize) {
                 numrecvbytes += recv(new_fd, &digits[numrecvbytes/intSize], size*intSize - numrecvbytes, 0);
             }
-            printf("Intitial receive. Now to decode...");
-            // for (int i = 0; i < size; i++) { // decode vector
-            //     digits[i] = ntohl(digits[i]);
-            // }
+
+            for (int i = 0; i < size; i++) { // decode vector
+                digits[i] = ntohl(digits[i]);
+            }
 
             std::cout << "Received: \n";
             printInOutVector(digits);
@@ -255,9 +254,9 @@ int run() {
             // store first element in primes
             primes.push_back(digits[0]);
 
-            // seive
+            // sieve
             if (digits.size() > 0) {
-                seive(digits);
+                sieve(digits);
             }
       }
 
