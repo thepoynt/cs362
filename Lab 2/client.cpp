@@ -79,15 +79,6 @@ void *get_in_addr(struct sockaddr *sa) {
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int is_big_endian(void){
-  union {
-      uint32_t i;
-      char c[4];
-  } bint = {0x01020304};
-
-  return bint.c[0] == 1; 
-}
-
 int main(int argc, char *argv[]) {
     int sockfd, numrecvbytes, numsendbytes, arraySize;
     struct addrinfo hints, *servinfo, *p;
