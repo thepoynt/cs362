@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS=-g 
+CFLAGS=-g -lm -lsocket -lnsl
 
 all: server client
 
