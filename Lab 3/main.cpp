@@ -10,54 +10,92 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <math.h>
+#include <fstream>
+using std::cout;
+using std::cin;
+using std::vector;
+using std::string;
 
 int runMFQS();
 int runRTS();
 int runHS();
-
+int readProcesses();
+int stringToProcess();
+void printVector(vector<std::string>);
 
 int scheduler;
 int numQueues = 3;
+vector<string> processes;
 
 
 int main () {
    bool done = false;
    while (!done) {
       printf("Please enter the number of the type of Scheduler you want to run:\n   1: MFQS\n   2: RTS\n   3: HS\n");
-      std::cin >> scheduler;
+      cin >> scheduler;
 
       switch (scheduler) {
          {case 1:
             bool validNum = false;
             while (!validNum) {
                printf("How many queues should be used (between 1 and 5)?");
-               std::cin >> numQueues;
+               cin >> numQueues;
                if(numQueues < 5 && numQueues > 0) {
                   validNum = true;
                }
-            } 
+            }
             runMFQS();
             done = true;
             break;
-         } 
-         {case 2 :
+         }{ 
+         case 2:
             runRTS();
             done = true;
             break;
-         }
-         {case 3:
+         }{
+         case 3:
             runHS();
             done = true;
             break;
-         } 
-         {default:
+         }{
+         default:
             break;
          }
       }
+      if (!readProcesses()) {
+         perror("Error reading file");
+         exit(1);
+      }
+         
+      
+      printVector(processes);
    }
 
 
    return 0; 
+}
+
+int readProcesses() {
+   string line;
+   std::ifstream myfile ("testfile");
+   int i = 0;
+   if (myfile.is_open()) {
+      while ( getline (myfile,line) ) {
+         if (i > 0 && line.find("-") == string::npos) { //skip first line - header
+            processes.push_back(line);
+         }
+         i++;
+      }
+      myfile.close();
+      return 1;
+   } else {
+      cout << "Unable to open file";
+      return 0;
+   } 
+}
+int stringToProcess() {
+   // convert line of text to a Process object
+   return 0;
 }
 
 int runMFQS() {
@@ -75,4 +113,9 @@ int runHS() {
    return 0;
 }
 
+void printVector(vector<string> v) {
+   for (int i = 0; i < v.size(); i++) {
+      cout << v[i] << "\n";
+   }
+}
 
