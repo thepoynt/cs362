@@ -33,10 +33,20 @@ vector<vector<int> > processes;
 
 int main () {
    bool done = false;
+
+   // Read in processes from file
+   if (!readProcesses("testfile")) {
+      perror("Error reading file");
+      exit(1);
+   }
+   printProcesses(processes);
+
+   // Get user input
    while (!done) {
       printf("Please enter the number of the type of Scheduler you want to run:\n   1: MFQS\n   2: RTS\n   3: HS\n");
       cin >> scheduler;
 
+      // Determine which scheduler to use
       switch (scheduler) {
          {case 1:
             bool validNum = false;
@@ -65,15 +75,9 @@ int main () {
             break;
          }
       }
-      if (!readProcesses("testfile")) {
-         perror("Error reading file");
-         exit(1);
-      }
-         
-      
-      printProcesses(processes);
    }
 
+   // I dunno, do something here to print out results and such...
 
    return 0; 
 }
@@ -134,4 +138,5 @@ void printProcesses(vector<vector<int> > v) {
       cout << "\n";
    }
 }
+
 
