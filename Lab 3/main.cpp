@@ -10,25 +10,26 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <math.h>
+#include <sstream>
 #include <fstream>
-<<<<<<< HEAD
+
 using std::cout;
 using std::cin;
 using std::vector;
 using std::string;
-=======
->>>>>>> 9ac466ab96fc691a4d2b0a33f83eb919aa108cde
+
 
 int runMFQS();
 int runRTS();
 int runHS();
-int readProcesses();
-int stringToProcess();
+int readProcesses(string);
+// int parseProcessFile(string);
+void stringToProcess(string, vector<string>);
 void printVector(vector<std::string>);
 
 int scheduler;
 int numQueues = 3;
-vector<string> processes;
+vector<vector<int>> processes;
 
 
 int main () {
@@ -65,28 +66,27 @@ int main () {
             break;
          }
       }
-      if (!readProcesses()) {
+      if (!readProcesses("testfile")) {
          perror("Error reading file");
          exit(1);
       }
          
       
-      printVector(processes);
+      // printVector(processes);
    }
 
 
    return 0; 
 }
 
-<<<<<<< HEAD
-int readProcesses() {
+int readProcesses(string filename) {
    string line;
-   std::ifstream myfile ("testfile");
+   std::ifstream myfile (filename);
    int i = 0;
    if (myfile.is_open()) {
       while ( getline (myfile,line) ) {
          if (i > 0 && line.find("-") == string::npos) { //skip first line - header
-            processes.push_back(line);
+            stringToProcess(line);
          }
          i++;
       }
@@ -97,29 +97,39 @@ int readProcesses() {
       return 0;
    } 
 }
-int stringToProcess() {
-   // convert line of text to a Process object
+void stringToProcess(string s) {
+   std::istringstream iss(s);
+   vector<string> tokens;
+   copy(std::istream_iterator<string>(iss),
+         std::istream_iterator<string>(),
+         std::back_inserter<vector<string>>(tokens));
    return 0;
-=======
-void parseProcessFile(String filename){
-    std::ifstream infile(filename);
-    
-    std::string line;
-    while (std::getline(infile, line)){
-        std::istringstream iss(line);
-        int pid, bst, arr, pri, dline, io;
-        if (!(infile >> pid >> bst >> arr >> pri >> dline >> io) || (pid < 0 || bst < 0 || arr < 0 || pri < 0 || dline < 0 || io < 0)) { 
-            //do nothing, as this line won't read in appropriately
-        } // error
-        printf("%d | %d | %d | %d | %d \n", pid, bst, arr, pri, dline, io);
-        // process pair (a,b)
-    }
->>>>>>> 9ac466ab96fc691a4d2b0a33f83eb919aa108cde
 }
+
+// int parseProcessFile(string filename){
+//    std::ifstream infile(filename);
+
+//    if (infile.is_open()) {
+//       std::string line;
+//       while (std::getline(infile, line)){
+//          std::istringstream iss(line);
+//          int pid, bst, arr, pri, dline, io;
+//          if (!(iss >> pid >> bst >> arr >> pri >> dline >> io) || (pid < 0 || bst < 0 || arr < 0 || pri < 0 || dline < 0 || io < 0)) { 
+//             //do nothing, as this line won't read in appropriately
+//          } else {
+//             printf("%d | %d | %d | %d | %d | %d\n", pid, bst, arr, pri, dline, io);
+//          }
+
+//     }
+//     return 1;
+//    } else {
+//    cout << "Unable to open file";
+//    return 0;
+//    }
+// }
 
 int runMFQS() {
    printf("Running MFQS...\n");
-    parseProcessFile("testfile");
    return 0;
 }
 
