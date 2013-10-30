@@ -23,13 +23,12 @@ int runMFQS();
 int runRTS();
 int runHS();
 int readProcesses(string);
-// int parseProcessFile(string);
-void stringToProcess(string, vector<string>);
-void printVector(vector<std::string>);
+void stringToProcess(string);
+void printProcesses(vector<vector<int> >);
 
 int scheduler;
 int numQueues = 3;
-vector<vector<int>> processes;
+vector<vector<int> > processes;
 
 
 int main () {
@@ -72,7 +71,7 @@ int main () {
       }
          
       
-      // printVector(processes);
+      printProcesses(processes);
    }
 
 
@@ -102,31 +101,15 @@ void stringToProcess(string s) {
    vector<string> tokens;
    copy(std::istream_iterator<string>(iss),
          std::istream_iterator<string>(),
-         std::back_inserter<vector<string>>(tokens));
-   return 0;
+         std::back_inserter<vector<string> >(tokens));
+
+   vector<int> process;
+   for (int i = 0; i < tokens.size(); i++) {
+      process.push_back(atoi(tokens[i].c_str()));
+   }
+   processes.push_back(process);
 }
 
-// int parseProcessFile(string filename){
-//    std::ifstream infile(filename);
-
-//    if (infile.is_open()) {
-//       std::string line;
-//       while (std::getline(infile, line)){
-//          std::istringstream iss(line);
-//          int pid, bst, arr, pri, dline, io;
-//          if (!(iss >> pid >> bst >> arr >> pri >> dline >> io) || (pid < 0 || bst < 0 || arr < 0 || pri < 0 || dline < 0 || io < 0)) { 
-//             //do nothing, as this line won't read in appropriately
-//          } else {
-//             printf("%d | %d | %d | %d | %d | %d\n", pid, bst, arr, pri, dline, io);
-//          }
-
-//     }
-//     return 1;
-//    } else {
-//    cout << "Unable to open file";
-//    return 0;
-//    }
-// }
 
 int runMFQS() {
    printf("Running MFQS...\n");
@@ -143,9 +126,12 @@ int runHS() {
    return 0;
 }
 
-void printVector(vector<string> v) {
+void printProcesses(vector<vector<int> > v) {
    for (int i = 0; i < v.size(); i++) {
-      cout << v[i] << "\n";
+      for (int j = 0; j< v[i].size(); j++) {
+         cout << v[i][j] << "\t";
+      }
+      cout << "\n";
    }
 }
 
