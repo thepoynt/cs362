@@ -10,6 +10,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <math.h>
+#include <fstream>
 
 int runMFQS();
 int runRTS();
@@ -60,8 +61,24 @@ int main () {
    return 0; 
 }
 
+void parseProcessFile(String filename){
+    std::ifstream infile(filename);
+    
+    std::string line;
+    while (std::getline(infile, line)){
+        std::istringstream iss(line);
+        int pid, bst, arr, pri, dline, io;
+        if (!(infile >> pid >> bst >> arr >> pri >> dline >> io) || (pid < 0 || bst < 0 || arr < 0 || pri < 0 || dline < 0 || io < 0)) { 
+            //do nothing, as this line won't read in appropriately
+        } // error
+        printf("%d | %d | %d | %d | %d \n", pid, bst, arr, pri, dline, io);
+        // process pair (a,b)
+    }
+}
+
 int runMFQS() {
    printf("Running MFQS...\n");
+    parseProcessFile("testfile");
    return 0;
 }
 
