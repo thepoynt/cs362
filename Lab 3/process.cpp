@@ -29,22 +29,6 @@ Process::Process(int pd, int b, int a, int pri, int d, int i) {
 void Process::setVars(string s) {
 	// Parse string into tokens
 	std::istringstream iss(s);
+	// put those into the variables
 	iss >> pid >> burst >> arrival >> priority >> deadline >> io;
-	// std::vector<string> tokens;
-	// copy(std::istream_iterator<string>(iss),
-	// 	std::istream_iterator<string>(),
-	// 	std::back_inserter<std::vector<string> >(tokens));
-
-	// // convert tokens into 
-	// std::vector<int> v;
-	// for (int i = 0; i < tokens.size(); i++) {
-	//   	v.push_back(atoi(tokens[i].c_str()));
-	// }
-
-	// pid = v[0];
-	// burst = v[1];
-	// arrival = v[2];
-	// priority = v[3];
-	// deadline = v[4];
-	// io = v[5];
 }
