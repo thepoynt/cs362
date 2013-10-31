@@ -12,6 +12,7 @@
 #include <math.h>
 #include <sstream>
 #include <fstream>
+#include "process.h"
 
 using std::cout;
 using std::cin;
@@ -24,11 +25,11 @@ int runRTS();
 int runHS();
 int readProcesses(string);
 void stringToProcess(string);
-void printProcesses(vector<vector<int> >);
+void printProcesses(vector<Process>);
 
 int scheduler;
 int numQueues = 3;
-vector<vector<int> > processes;
+vector<Process> processes;
 
 
 int main () {
@@ -49,7 +50,7 @@ int main () {
       // Determine which scheduler to use
       switch (scheduler) {
          {case 1:
-            bool validNum = false;
+            bool validNum = false; 
             while (!validNum) {
                printf("How many queues should be used (between 1 and 5)?");
                cin >> numQueues;
@@ -89,7 +90,10 @@ int readProcesses(string filename) {
    if (myfile.is_open()) {
       while ( getline (myfile,line) ) {
          if (i > 0 && line.find("-") == string::npos) { //skip first line - header
-            stringToProcess(line);
+            // make new Process object from line
+            Process p;
+            p.setVars(line);
+            processes.push_back(p); // add it to our vector
          }
          i++;
       }
@@ -100,20 +104,6 @@ int readProcesses(string filename) {
       return 0;
    } 
 }
-void stringToProcess(string s) {
-   std::istringstream iss(s);
-   vector<string> tokens;
-   copy(std::istream_iterator<string>(iss),
-         std::istream_iterator<string>(),
-         std::back_inserter<vector<string> >(tokens));
-
-   vector<int> process;
-   for (int i = 0; i < tokens.size(); i++) {
-      process.push_back(atoi(tokens[i].c_str()));
-   }
-   processes.push_back(process);
-}
-
 
 int runMFQS() {
    printf("Running MFQS...\n");
@@ -130,12 +120,9 @@ int runHS() {
    return 0;
 }
 
-void printProcesses(vector<vector<int> > v) {
+void printProcesses(vector<Process> v) {
    for (int i = 0; i < v.size(); i++) {
-      for (int j = 0; j< v[i].size(); j++) {
-         cout << v[i][j] << "\t";
-      }
-      cout << "\n";
+      cout << v[i].pid << "\t" << v[i].burst << "\t" << v[i].arrival << "\t" << v[i].priority << "\t" << v[i].deadline << "\t" << v[i].io << "\n";
    }
 }
 
