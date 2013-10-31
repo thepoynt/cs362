@@ -106,7 +106,7 @@ int readProcesses(string filename) {
 }
 
 int runMFQS() {
-   printf("Running MFQS...\n");
+   printf("Running MFQS with %d queues...\n", numQueues);
    return 0;
 }
 

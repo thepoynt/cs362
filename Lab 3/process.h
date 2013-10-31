@@ -13,4 +13,4 @@ class Process {
 
 };
 
-#endif // BURRITO_H
+#endif // PROCESS_H
