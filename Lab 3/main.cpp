@@ -26,9 +26,11 @@ int runHS();
 int readProcesses(string);
 void stringToProcess(string);
 void printProcesses(vector<Process>);
+void putNextOnQueueByDeadline(vector<Process>*, int);
 
 int scheduler;
 int numQueues = 3;
+int tq;
 vector<Process> processes;
 
 
@@ -52,22 +54,28 @@ int main () {
          {case 1:
             bool validNum = false; 
             while (!validNum) {
-               printf("How many queues should be used (between 1 and 5)?");
+               printf("How many queues should be used (between 1 and 5)? ");
                cin >> numQueues;
                if(numQueues < 5 && numQueues > 0) {
                   validNum = true;
                }
             }
+            printf("Please enter the Time Quantum: ");
+            cin >> tq;
             runMFQS();
             done = true;
             break;
          }{ 
          case 2:
+            printf("Please enter the Time Quantum: ");
+            cin >> tq;
             runRTS();
             done = true;
             break;
          }{
          case 3:
+            printf("Please enter the Time Quantum: ");
+            cin >> tq;
             runHS();
             done = true;
             break;
@@ -112,12 +120,47 @@ int runMFQS() {
 
 int runRTS() {
    printf("Running RTS...\n");
+   vector<Process> queue; // Queue for processes
+   int clk = 0; // Clock counter
+   bool processesLeft = true; // Are there any processes still running?
+
+   while (processesLeft) {
+      // Bring in any new processes at current clk, putting them in queue based on deadline
+      putNextOnQueueByDeadline(&queue, clk);
+
+      // "Execute" the first process in the queue by decrementing it's timeLeft variable
+
+
+      // if timeLeft is 0 for current process, remove it
+
+
+      clk++;
+   }
    return 0;
 }
 
 int runHS() {
    printf("Running HS...\n");
    return 0;
+}
+
+void putNextOnQueueByDeadline(vector<Process>* queue, int clk) {
+   for (int i=0; i<processes.size(); i++) {
+      if (processes[i].arrival == clk) { // get all processes coming in at this clock tick
+         Process temp = processes[i];
+         if (queue.size() == 0) { // if there's no processes in the queue, just add it
+            queue.push_front(temp);
+            processes.erase(processes.begin() + i);
+         } else {
+            for (int j=0; j<*queue.size(); j++) {
+               if (temp.deadline > *queue[j].deadline) { // put it in before the first one with a later deadline
+                  *queue.insert(queue.begin() + (j-1), temp);
+                  processes.erase(processes.begin() + i);
+               }
+            }
+         }
+      }
+   }
 }
 
 void printProcesses(vector<Process> v) {

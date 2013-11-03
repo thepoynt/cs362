@@ -7,7 +7,7 @@ class Process {
 	public:
 		Process();
 		Process(int, int, int, int, int, int);
-		int pid, burst, arrival, priority, deadline, io;
+		int pid, burst, arrival, priority, deadline, io, timeLeft;
 		void setVars(std::string);
 
 

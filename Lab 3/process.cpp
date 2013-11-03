@@ -24,6 +24,7 @@ Process::Process(int pd, int b, int a, int pri, int d, int i) {
 	priority = pri;
 	deadline = d;
 	io = i;
+	timeLeft = b;
 }
 
 void Process::setVars(string s) {
@@ -32,3 +33,4 @@ void Process::setVars(string s) {
 	// put those into the variables
 	iss >> pid >> burst >> arrival >> priority >> deadline >> io;
 }
+
