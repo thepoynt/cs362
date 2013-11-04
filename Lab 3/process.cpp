@@ -29,6 +29,7 @@ Process::Process(int pd, int b, int a, int pri, int d, int i) {
 	timeSpent = 0;
 	waited = 0;
 	scheduled = false;
+	turnaround = 0;
 }
 
 void Process::setVars(string s) {
@@ -40,6 +41,7 @@ void Process::setVars(string s) {
 	timeSpent = 0;
 	waited = 0;
 	scheduled = false;
+	turnaround = 0;
 }
 
 void Process::execute() {

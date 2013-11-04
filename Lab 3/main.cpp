@@ -31,7 +31,6 @@ int readProcesses(string);
 void stringToProcess(string);
 void printProcesses(deque<Process>);
 void putNextOnQueueByDeadline(int);
-int avgWaitTime();
 bool thereAreProcessesLeftToBeScheduled();
 
 int scheduler;
@@ -39,6 +38,8 @@ int numQueues = 3;
 int tq;
 deque<Process> processes;
 deque<Process> queue;
+int totalWaitTime = 0;
+double avgWaitTime;
 
 
 int main () {
@@ -95,7 +96,17 @@ int main () {
       }
    }
 
-   // I dunno, maybe do something here to print out results and such...
+   // Results
+
+   // Average Waiting Time
+   avgWaitTime = totalWaitTime;
+   avgWaitTime = avgWaitTime/processes.size();
+   cout <<  "AWT: " << avgWaitTime << "\n";
+
+   // Average Turnaround Time
+
+
+   // Total number of processes scheduled
 
    return 0; 
 }
@@ -145,7 +156,7 @@ int runRTS() {
          cout << clk << ": Executing " << queue[0].pid << "\n";
          // increment the waiting time for all other processes in queue
          for (int i = 1; i<queue.size(); i++) {
-            queue.waited++;
+            totalWaitTime++;
          }
 
          // if timeLeft is 0 for current process, remove it
@@ -160,6 +171,7 @@ int runRTS() {
       clk++;
    }
    printf("Done with RTS!\n");
+
    return 0;
 }
 
@@ -170,14 +182,14 @@ int runHS() {
 
 void putNextOnQueueByDeadline(int clk) {
    for (int i=0; i<processes.size(); i++) {
-      if (processes[i].arrival == clk && !processes[i].sheduled) { // get all processes coming in at this clock tick
+      if (processes[i].arrival == clk && !processes[i].scheduled) { // get all processes coming in at this clock tick
          // Process temp = processes[i];
          if (queue.size() == 0) { // if there's no processes in the queue, just add it
             #ifdef DEBUG
                cout << clk << ": Putting process (" << processes[i].pid << ") on beginning of queue\n";
             #endif
             queue.push_front(processes[i]);
-            processes[i].sheduled = true;
+            processes[i].scheduled = true;
          } else {
             for (int j=0; j<queue.size(); j++) {
                if (processes[i].deadline < queue[j].deadline) { // put it in before the first one with a later deadline
@@ -185,7 +197,7 @@ void putNextOnQueueByDeadline(int clk) {
                      cout << clk << ": Putting process (" << processes[i].pid << ") at position " << j << " in queue\n";
                   #endif
                   queue.insert(queue.begin() + (j), processes[i]);
-                  processes[i].sheduled = true;
+                  processes[i].scheduled = true;
                   j = queue.size();
                }
             }
@@ -194,7 +206,16 @@ void putNextOnQueueByDeadline(int clk) {
    }
 }
 
-thereAreProcessesLeftToBeScheduled()
+bool thereAreProcessesLeftToBeScheduled() {
+   bool result = false;
+   for (int i=0; i<processes.size(); i++) {
+      if (!processes[i].scheduled) {
+         result = true;
+         i = processes.size();
+      }
+   }
+   return result;
+}
 
 void printProcesses(deque<Process> v) {
    for (int i = 0; i < v.size(); i++) {
@@ -202,11 +223,6 @@ void printProcesses(deque<Process> v) {
    }
 }
 
-int avgWaitTime() {
-   int avg;
-
-   return avg;
-}
 
 
 
