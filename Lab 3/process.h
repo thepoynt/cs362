@@ -7,9 +7,11 @@ class Process {
 	public:
 		Process();
 		Process(int, int, int, int, int, int);
-		int pid, burst, arrival, priority, deadline, io, timeLeft;
+		int pid, burst, arrival, priority, deadline, io, timeLeft, timeSpent, waited;
+		bool scheduled;
 		void setVars(std::string);
-
+		std::string toString();
+		void execute();
 
 };
 

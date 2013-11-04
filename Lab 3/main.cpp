@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <deque>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,7 +18,10 @@
 using std::cout;
 using std::cin;
 using std::vector;
+using std::deque;
 using std::string;
+
+#define DEBUG ;
 
 
 int runMFQS();
@@ -25,24 +29,29 @@ int runRTS();
 int runHS();
 int readProcesses(string);
 void stringToProcess(string);
-void printProcesses(vector<Process>);
-void putNextOnQueueByDeadline(vector<Process>*, int);
+void printProcesses(deque<Process>);
+void putNextOnQueueByDeadline(int);
+int avgWaitTime();
+bool thereAreProcessesLeftToBeScheduled();
 
 int scheduler;
 int numQueues = 3;
 int tq;
-vector<Process> processes;
+deque<Process> processes;
+deque<Process> queue;
 
 
 int main () {
    bool done = false;
 
    // Read in processes from file
-   if (!readProcesses("testfile")) {
+   if (!readProcesses("testfile2")) {
       perror("Error reading file");
       exit(1);
    }
-   printProcesses(processes);
+   #ifdef DEBUG
+      printProcesses(processes);
+   #endif
 
    // Get user input
    while (!done) {
@@ -56,7 +65,7 @@ int main () {
             while (!validNum) {
                printf("How many queues should be used (between 1 and 5)? ");
                cin >> numQueues;
-               if(numQueues < 5 && numQueues > 0) {
+               if(numQueues < 6 && numQueues > 0) {
                   validNum = true;
                }
             }
@@ -86,14 +95,14 @@ int main () {
       }
    }
 
-   // I dunno, do something here to print out results and such...
+   // I dunno, maybe do something here to print out results and such...
 
    return 0; 
 }
 
 int readProcesses(string filename) {
    string line;
-   std::ifstream myfile (filename);
+   std::ifstream myfile (filename.c_str());
    int i = 0;
    if (myfile.is_open()) {
       while ( getline (myfile,line) ) {
@@ -120,22 +129,37 @@ int runMFQS() {
 
 int runRTS() {
    printf("Running RTS...\n");
-   vector<Process> queue; // Queue for processes
    int clk = 0; // Clock counter
-   bool processesLeft = true; // Are there any processes still running?
 
-   while (processesLeft) {
+   while (thereAreProcessesLeftToBeScheduled() || queue.size() > 0) {
+      // cout << "clock: " << clk;
       // Bring in any new processes at current clk, putting them in queue based on deadline
-      putNextOnQueueByDeadline(&queue, clk);
+      putNextOnQueueByDeadline(clk);
 
-      // "Execute" the first process in the queue by decrementing it's timeLeft variable
+      if (queue.size() > 0) {
+         // Check through processes in queue to see if there are any that cannot finish
 
 
-      // if timeLeft is 0 for current process, remove it
+         // "Execute" the first process in the queue by decrementing it's timeLeft variable
+         queue[0].execute();
+         cout << clk << ": Executing " << queue[0].pid << "\n";
+         // increment the waiting time for all other processes in queue
+         for (int i = 1; i<queue.size(); i++) {
+            queue.waited++;
+         }
 
+         // if timeLeft is 0 for current process, remove it
+         if (queue[0].timeLeft == 0) {
+            #ifdef DEBUG
+               cout << clk << ": Popping process (" << queue[0].pid << ") from queue\n";
+            #endif
+            queue.pop_front();
+         }
+      }
 
       clk++;
    }
+   printf("Done with RTS!\n");
    return 0;
 }
 
@@ -144,18 +168,25 @@ int runHS() {
    return 0;
 }
 
-void putNextOnQueueByDeadline(vector<Process>* queue, int clk) {
+void putNextOnQueueByDeadline(int clk) {
    for (int i=0; i<processes.size(); i++) {
-      if (processes[i].arrival == clk) { // get all processes coming in at this clock tick
-         Process temp = processes[i];
+      if (processes[i].arrival == clk && !processes[i].sheduled) { // get all processes coming in at this clock tick
+         // Process temp = processes[i];
          if (queue.size() == 0) { // if there's no processes in the queue, just add it
-            queue.push_front(temp);
-            processes.erase(processes.begin() + i);
+            #ifdef DEBUG
+               cout << clk << ": Putting process (" << processes[i].pid << ") on beginning of queue\n";
+            #endif
+            queue.push_front(processes[i]);
+            processes[i].sheduled = true;
          } else {
-            for (int j=0; j<*queue.size(); j++) {
-               if (temp.deadline > *queue[j].deadline) { // put it in before the first one with a later deadline
-                  *queue.insert(queue.begin() + (j-1), temp);
-                  processes.erase(processes.begin() + i);
+            for (int j=0; j<queue.size(); j++) {
+               if (processes[i].deadline < queue[j].deadline) { // put it in before the first one with a later deadline
+                  #ifdef DEBUG
+                     cout << clk << ": Putting process (" << processes[i].pid << ") at position " << j << " in queue\n";
+                  #endif
+                  queue.insert(queue.begin() + (j), processes[i]);
+                  processes[i].sheduled = true;
+                  j = queue.size();
                }
             }
          }
@@ -163,10 +194,21 @@ void putNextOnQueueByDeadline(vector<Process>* queue, int clk) {
    }
 }
 
-void printProcesses(vector<Process> v) {
+thereAreProcessesLeftToBeScheduled()
+
+void printProcesses(deque<Process> v) {
    for (int i = 0; i < v.size(); i++) {
-      cout << v[i].pid << "\t" << v[i].burst << "\t" << v[i].arrival << "\t" << v[i].priority << "\t" << v[i].deadline << "\t" << v[i].io << "\n";
+      cout << v[i].toString() << "\n";
    }
 }
+
+int avgWaitTime() {
+   int avg;
+
+   return avg;
+}
+
+
+
 
 
