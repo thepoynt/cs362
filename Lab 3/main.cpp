@@ -40,6 +40,7 @@ deque<Process> processes;
 deque<Process> queue;
 int totalWaitTime = 0;
 double avgWaitTime;
+int totalProcessesScheduled = 0;
 
 
 int main () {
@@ -100,13 +101,14 @@ int main () {
 
    // Average Waiting Time
    avgWaitTime = totalWaitTime;
-   avgWaitTime = avgWaitTime/processes.size();
+   avgWaitTime = avgWaitTime/totalProcessesScheduled;
    cout <<  "AWT: " << avgWaitTime << "\n";
 
    // Average Turnaround Time
 
 
    // Total number of processes scheduled
+   cout << "NP: " << totalProcessesScheduled << "\n";
 
    return 0; 
 }
@@ -143,17 +145,28 @@ int runRTS() {
    int clk = 0; // Clock counter
 
    while (thereAreProcessesLeftToBeScheduled() || queue.size() > 0) {
-      // cout << "clock: " << clk;
-      // Bring in any new processes at current clk, putting them in queue based on deadline
+
+      // Bring in any new processes at current clok, putting them in queue based on deadline
       putNextOnQueueByDeadline(clk);
 
-      if (queue.size() > 0) {
+      if (queue.size() > 0) { // No need to do anything if there's no processes on queue
          // Check through processes in queue to see if there are any that cannot finish
+         for (int i=0; i<queue.size(); i++) {
+            if (queue[i].deadline < (clk + queue[i].timeLeft)) {
+               // this process cannot complete by its deadline, so should be removed. Its contribution to waiting time will still be factored
+               #ifdef DEBUG
+                  cout << clk << ": Process " << queue[i].pid << " ran out of time!\n";
+               #endif
+               totalProcessesScheduled--;
+               queue.erase(queue.begin() + i);
+            }
+         }
 
-
-         // "Execute" the first process in the queue by decrementing it's timeLeft variable
+         // "Execute" the first process in the queue
          queue[0].execute();
-         cout << clk << ": Executing " << queue[0].pid << "\n";
+         #ifdef DEBUG
+            cout << clk << ": Executing " << queue[0].pid << "\n";
+         #endif
          // increment the waiting time for all other processes in queue
          for (int i = 1; i<queue.size(); i++) {
             totalWaitTime++;
@@ -183,7 +196,7 @@ int runHS() {
 void putNextOnQueueByDeadline(int clk) {
    for (int i=0; i<processes.size(); i++) {
       if (processes[i].arrival == clk && !processes[i].scheduled) { // get all processes coming in at this clock tick
-         // Process temp = processes[i];
+         totalProcessesScheduled++;
          if (queue.size() == 0) { // if there's no processes in the queue, just add it
             #ifdef DEBUG
                cout << clk << ": Putting process (" << processes[i].pid << ") on beginning of queue\n";
