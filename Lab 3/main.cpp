@@ -39,7 +39,7 @@ int tq;
 deque<Process> processes;
 deque<Process> queue;
 int totalWaitTime = 0;
-double avgWaitTime;
+int totalTurnaroundTime = 0;
 int totalProcessesScheduled = 0;
 
 
@@ -100,11 +100,14 @@ int main () {
    // Results
 
    // Average Waiting Time
-   avgWaitTime = totalWaitTime;
+   double avgWaitTime = totalWaitTime;
    avgWaitTime = avgWaitTime/totalProcessesScheduled;
    cout <<  "AWT: " << avgWaitTime << "\n";
 
    // Average Turnaround Time
+   double avgTurn = totalTurnaroundTime;
+   avgTurn = avgTurn/totalProcessesScheduled;
+   cout << "ATT: " << avgTurn << "\n";
 
 
    // Total number of processes scheduled
@@ -157,7 +160,8 @@ int runRTS() {
                #ifdef DEBUG
                   cout << clk << ": Process " << queue[i].pid << " ran out of time!\n";
                #endif
-               totalProcessesScheduled--;
+               totalProcessesScheduled--; // not counted towards total number of processes scheduled
+               totalTurnaroundTime -= (clk - queue[i].arrival); // turnaround time also not counted
                queue.erase(queue.begin() + i);
             }
          }
@@ -170,13 +174,17 @@ int runRTS() {
          // increment the waiting time for all other processes in queue
          for (int i = 1; i<queue.size(); i++) {
             totalWaitTime++;
+            totalTurnaroundTime++; // this gets incremented for all other processes, as well as the current process (all processes on queue are having their turnaround time incremented, while only all non-running processes get wait time incremented)
          }
+         totalTurnaroundTime++; // Increment for current process. See comment above ^^
 
          // if timeLeft is 0 for current process, remove it
          if (queue[0].timeLeft == 0) {
             #ifdef DEBUG
                cout << clk << ": Popping process (" << queue[0].pid << ") from queue\n";
             #endif
+            queue[0].endTime = clk;
+            queue[0].turnaround = clk - queue[0].arrival;
             queue.pop_front();
          }
       }

@@ -29,6 +29,7 @@ Process::Process(int pd, int b, int a, int pri, int d, int i) {
 	timeSpent = 0;
 	waited = 0;
 	scheduled = false;
+	endTime = 0;
 	turnaround = 0;
 }
 
@@ -41,6 +42,7 @@ void Process::setVars(string s) {
 	timeSpent = 0;
 	waited = 0;
 	scheduled = false;
+	endTime = 0;
 	turnaround = 0;
 }
 
@@ -50,6 +52,8 @@ void Process::execute() {
 }
 
 string Process::toString() {
-	string result = std::to_string(pid) + "\t" + std::to_string(burst) + "\t" + std::to_string(arrival) + "\t" + std::to_string(priority) + "\t" + std::to_string(deadline) + "\t" + std::to_string(io);
-	return result;
+	std::ostringstream oss;
+	oss << pid << "\t" << burst << "\t" << arrival << "\t" << priority << "\t" << deadline << "\t" << io;
+	// string result = std::to_string(pid) + "\t" + std::to_string(burst) + "\t" + std::to_string(arrival) + "\t" + std::to_string(priority) + "\t" + std::to_string(deadline) + "\t" + std::to_string(io);
+	return oss.str();;
 }
