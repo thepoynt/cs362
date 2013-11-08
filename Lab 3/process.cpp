@@ -31,6 +31,8 @@ Process::Process(int pd, int b, int a, int pri, int d, int i) {
 	scheduled = false;
 	endTime = 0;
 	turnaround = 0;
+    dynamicpriority = pri;
+    lastrun = 0;
 }
 
 void Process::setVars(string s) {
@@ -44,6 +46,8 @@ void Process::setVars(string s) {
 	scheduled = false;
 	endTime = 0;
 	turnaround = 0;
+    dynamicpriority = priority;
+    lastrun = 0;
 }
 
 void Process::execute() {
