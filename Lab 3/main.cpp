@@ -14,14 +14,16 @@
 #include <sstream>
 #include <fstream>
 #include "process.h"
+#include <algorithm>
 
 using std::cout;
 using std::cin;
 using std::vector;
 using std::deque;
 using std::string;
+using std::make_heap;
 
-#define DEBUG ;
+#define DEBUG 0;
 
 
 int runMFQS();
@@ -32,12 +34,15 @@ void stringToProcess(string);
 void printProcesses(deque<Process>);
 void putNextOnQueueByDeadline(int);
 bool thereAreProcessesLeftToBeScheduled();
+void putNextOnQueueByPriorityHS(int);
+void scheduleMeHS(int, Process);    
 
 int scheduler;
 int numQueues = 3;
 int tq;
 deque<Process> processes;
 deque<Process> queue;
+deque<Process> IOqueue;
 int totalWaitTime = 0;
 int totalTurnaroundTime = 0;
 int totalProcessesScheduled = 0;
@@ -197,8 +202,89 @@ int runRTS() {
 }
 
 int runHS() {
-   printf("Running HS...\n");
-   return 0;
+    printf("Running HS...\n");
+    int clk = 0;
+    int tqcount = 0;
+    
+    while (thereAreProcessesLeftToBeScheduled() || queue.size() > 0) {
+        //determine where to put in queue based on priority
+        putNextOnQueueByPriorityHS(clk);
+        tqcount++;
+        //only do the following if the queue has something in it, and isn't a clock interrupt time
+        if (queue.size() > 0){
+            
+            //only execute if less than I/O time
+            if(tqcount < (tq-1)) {
+                queue[0].execute();
+                queue[0].lastrun = clk;
+				#ifdef DEBUG
+				cout << clk << ": Executing " << queue[0].pid << "\n";
+				#endif
+                
+                //if process if completed, kick it from the queue
+                if(queue[0].timeLeft == 0){
+                    queue[0].endTime = clk;
+                    queue[0].turnaround = clk - queue[0].arrival;
+                    queue.pop_front();
+                }
+                
+            }else if(tqcount == tq-1 && queue[0].timeLeft == 0){ //if process finishes on last tq tick
+                                
+            }else{  //this only runs on clock interrupt cases
+                
+                //change priority of process based on clock ticks ran
+                //if the change would put the dynamic priority lower than the original priority, set it to the original priority
+                if(queue[0].dynamicpriority - tqcount < queue[0].priority){
+                    queue[0].dynamicpriority = queue[0].priority;   
+                }else{ //otherwise, just subtract the tqcount 
+                    queue[0].dynamicpriority = queue[0].dynamicpriority - tqcount;
+                }
+                //if this has I/O, run it
+                if(queue[0].io > 0){
+                    IOqueue.push_back(queue[0]);
+                    queue.pop_front();
+                }
+            }
+        }
+        
+        //loop through IOqueue, searching for processes that are done with I/O
+        for(int i = 0; i < IOqueue.size(); ++i){
+            //decrease IO time left
+            IOqueue[i].io--;
+            //increase prio according to IO time
+            IOqueue[i].dynamicpriority++;
+            //if IO is now 0, put onto running queue
+            if(IOqueue[i].io == 0){
+                Process p = IOqueue[i];
+                IOqueue.erase(IOqueue.begin() + i);
+                scheduleMeHS(clk, p);
+            }
+            //if not == 0, do nothing else.
+        }
+        
+        //check for starving processes, mod priority as necessary
+        if(clk % 100 == 0){
+            for(int i = 0; i < queue.size(); ++i){
+                //only change if 
+                if(clk - queue[i].lastrun >= 100){
+                    //only change if under 50
+                    if(queue[i].dynamicpriority < 50){
+                        //if increasing by 10 puts over 50, set to 50
+                        if((queue[i].dynamicpriority + 10 > 50)){
+                            queue[i].dynamicpriority = 50;
+                        }else{
+                            queue[i].dynamicpriority = queue[i].dynamicpriority + 10;
+                        }
+                    }
+                }
+            }
+        }
+        
+        clk++;
+    }
+    
+    
+    return 0;
 }
 
 void putNextOnQueueByDeadline(int clk) {
@@ -227,6 +313,47 @@ void putNextOnQueueByDeadline(int clk) {
    }
 }
 
+//HS nextOnQueue
+void putNextOnQueueByPriorityHS(int clk) {
+    for (int i=0; i<processes.size(); i++) {
+        if (processes[i].arrival == clk && !processes[i].scheduled) { // get all processes coming in at this clock tick
+            totalProcessesScheduled++;
+            
+            //check legitimacy of the current priority, change dynamic priority if needed
+            if(processes[i].priority > 99){
+                processes[i].dynamicpriority = 99;
+            }else if(processes[i].priority < 0){
+                processes[i].dynamicpriority = 0;   
+            }else{
+                processes[i].dynamicpriority = processes[i].priority;   
+            }
+            if (queue.size() == 0) { // if there's no processes in the queue, just add it
+                #ifdef DEBUG
+                   cout << clk << ": Putting process (" << processes[i].pid << ") on beginning of queue\n";
+                #endif
+                queue.push_front(processes[i]);
+                processes[i].scheduled = true;
+            } else {
+                //if there's processes in the queue, schedule accordingly
+                scheduleMeHS(clk, processes[i]);
+            }
+        }
+    }
+}
+
+void scheduleMeHS(int clk, Process p){
+    // just as what we had previously in the putNextOnQueueByPriorityHS() function, but since it can also be used for post-IO scheduling, i separated it
+    for (int j=0; j<queue.size(); j++) {
+        if (p.dynamicpriority > queue[j].dynamicpriority) { // put it in before the first one with a later deadline
+            #ifdef DEBUG
+            cout << clk << ": Putting process (" << p.pid << ") at position " << j << " in queue\n";
+            #endif
+            queue.insert(queue.begin() + (j), p);
+            j = queue.size();
+        }
+    }
+}
+
 bool thereAreProcessesLeftToBeScheduled() {
    bool result = false;
    for (int i=0; i<processes.size(); i++) {
@@ -243,9 +370,3 @@ void printProcesses(deque<Process> v) {
       cout << v[i].toString() << "\n";
    }
 }
-
-
-
-
-
-
