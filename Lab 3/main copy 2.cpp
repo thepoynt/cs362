@@ -262,7 +262,7 @@ int runHS() {
          // look at first process in first queue
          // execute
          #ifdef DEBUG
-            cout << clk << ": " << queues.front().processes[0].pid << " running (running for " << (queues.front().processes[0].timeInThisQuantum + 1) << ")\n";
+            cout << clk << ": (" << queues.front().processes[0].pid << ") running (running for " << (queues.front().processes[0].timeInThisQuantum + 1) << ")\n";
          #endif
          queues.front().processes[0].execute();
 
@@ -275,7 +275,7 @@ int runHS() {
          //if process completed, "kick" it from the queue
          if(queues.front().processes[0].timeLeft == 0){
             #ifdef DEBUG
-               cout << clk << ": " << queues.front().processes[0].pid << " Ended\n";
+               cout << clk << ": (" << queues.front().processes[0].pid << ") Ended\n";
             #endif
             queues.front().processes[0].endTime = clk;
             queues.front().processes[0].turnaround = clk - queues.front().processes[0].arrival;
@@ -294,7 +294,7 @@ int runHS() {
          // if the process is still running at tq - 1, time to interrupt for IO
          if (queues.front().processes[0].timeInThisQuantum == tq - 1) {
             #ifdef DEBUG
-               cout << clk << ": " << queues.front().processes[0].pid << " Hit time quantum IO\n";
+               cout << clk << ": (" << queues.front().processes[0].pid << ") Hit time quantum IO\n";
             #endif
             
             //change priority of process based on clock ticks ran
@@ -311,11 +311,16 @@ int runHS() {
             //if this has I/O, run it
             if(queues.front().processes[0].io > 0){
                #ifdef DEBUG
-                  cout << clk << ": " << queues.front().processes[0].pid << " Going to IO queue\n";
+                  cout << clk << ": (" << queues.front().processes[0].pid << ") Going to IO queue\n";
                #endif
                iOqueue.push_back(queues.front().processes[0]);
                // std::pop_heap(queues.front().processes.begin(), queues.front().processes.end());
                queues.front().processes.pop_front(); // remove current process from queue
+               // if that queue is now empty, remove it from queues
+               if (queues.front().processes.empty()) {
+                  std::pop_heap(queues.begin(), queues.end()); 
+                  queues.pop_back();
+               }
             }
          }
       }
@@ -328,6 +333,9 @@ int runHS() {
          iOqueue[i].dynamicpriority++;
          //if IO is now 0, put onto running queues
          if(iOqueue[i].ioLeft == 0){
+            #ifdef DEBUG
+               cout << clk << ": (" << iOqueue[i].pid << ") done with IO\n";
+            #endif
             iOqueue[i].ioLeft = iOqueue[i].io; // reset ioLeft for next time
             Process p = iOqueue[i];
             iOqueue.erase(iOqueue.begin() + i);
