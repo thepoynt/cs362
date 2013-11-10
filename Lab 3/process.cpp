@@ -25,14 +25,16 @@ Process::Process(int pd, int b, int a, int pri, int d, int i) {
 	priority = pri;
 	deadline = d;
 	io = i;
-	timeLeft = b;
-	timeSpent = 0;
-	waited = 0;
-	scheduled = false;
-	endTime = 0;
-	turnaround = 0;
-    dynamicpriority = pri;
-    lastrun = 0;
+	timeLeft = b; // time needed to complete
+	timeSpent = 0; // total time spent running
+	waited = 0; // total time spent waiting
+	scheduled = false; // has this been scheduled?
+	endTime = 0; // clock tick at which this process finished
+	turnaround = 0; // time between arrival and finishing
+    dynamicpriority = pri; // dynamic priority (for HS)
+    lastrun = 0; // last clock tick at which this process ran (for HS)
+    ioLeft = io; // time in IO left to wait (for HS)
+    timeInThisQuantum = 0; // running time left before hitting the time quantum
 }
 
 void Process::setVars(string s) {
@@ -48,6 +50,8 @@ void Process::setVars(string s) {
 	turnaround = 0;
     dynamicpriority = priority;
     lastrun = 0;
+    ioLeft = io;
+    timeInThisQuantum = 0;
 }
 
 void Process::execute() {
