@@ -22,14 +22,14 @@ ProcessQueue::ProcessQueue() {
 
 ProcessQueue::ProcessQueue(Process p) {
 	processes.push_back(p);
-	priority = p.priority;
+	priority = p.dynamicpriority;
 }
 
 void ProcessQueue::addProcess(Process p) {
 	processes.push_back(p);
 	if (priority == -1) { 
 		// this is the first process added - set priority
-		priority = p.priority;
+		priority = p.dynamicpriority;
 	}
 }
 
