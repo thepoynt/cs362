@@ -24,7 +24,7 @@ using std::deque;
 using std::string;
 using std::make_heap;
 
-#define DEBUG 0;
+// #define DEBUG 0;
 
 
 int runMFQS();
@@ -310,26 +310,39 @@ int runHS() {
 
          //check for starving processes, mod priority as necessary
          if (clk % 100 == 0) {
-            for (int i = 0; i < queues.size(); i++) {
-               for (int j=0; j < queues[i].processes.size(); j++) {
+            std::sort_heap(queues.begin(), queues.end());
+            deque<ProcessQueue> queuesOld (queues); // need to make a copy to work from, otherwise we'll loop infinitely
+            queues.clear();
+            std::make_heap(queues.begin(), queues.end());
+
+            deque<Process> tempQueue;
+
+            printQueues(queues);
+            for (int i = 0; i < queuesOld.size(); i++) {
+               for (int j=0; j < queuesOld[i].processes.size(); j++) {
                   //only change if hasn't been run in >=100 clock ticks
-                  if (clk - queues[i].processes[j].lastrun >= 100) {
+                  if (clk - queuesOld[i].processes[j].lastrun >= 100) {
                      //only change if under 50
-                     if (queues[i].processes[j].dynamicpriority < 50) {
+                     if (queuesOld[i].processes[j].dynamicpriority < 50) {
                         #ifdef DEBUG
-                           cout << clk << ": Starving process " << queues[i].processes[j].pid << " found!\n";
+                           cout << clk << ": Starving process " << queuesOld[i].processes[j].pid << " found!\n";
                         #endif
                         //if increasing by 10 puts over 50, set to 50
-                        if ((queues[i].processes[j].dynamicpriority + 10 > 50)) {
-                           queues[i].processes[j].dynamicpriority = 50;
+                        if ((queuesOld[i].processes[j].dynamicpriority + 10 > 50)) {
+                           queuesOld[i].processes[j].dynamicpriority = 50;
                         } else {
-                           queues[i].processes[j].dynamicpriority = queues[i].processes[j].dynamicpriority + 10;
+                           queuesOld[i].processes[j].dynamicpriority = queuesOld[i].processes[j].dynamicpriority + 10;
                         }
-                        addToProcessQueues(queues[i].processes[j], clk);
-                        queues[i].processes.erase(queues[i].processes.begin() + j);
+                        // addToProcessQueues(queuesOld[i].processes[j], clk); // add newly updated process to real queue
                      }
                   }
+                  tempQueue.push_back(queuesOld[i].processes[j]);
+                  queuesOld[i].processes.erase(queuesOld[i].processes.begin() + j); // remove process from fake queue
                }
+            }
+
+            for (int i = 0; i < tempQueue.size(); i++) {
+               addToProcessQueues(tempQueue[i], clk);
             }
          }
 
@@ -401,7 +414,7 @@ int runHS() {
             if(queues.front().processes[0].dynamicpriority - tq-1 < queues.front().processes[0].priority){
                queues.front().processes[0].dynamicpriority = queues.front().processes[0].priority;   
             }else{ //otherwise, just subtract the amount it's run this time around (tq - 1)
-               queues.front().processes[0].dynamicpriority = queues.front().processes[0].dynamicpriority - tq-1;
+               queues.front().processes[0].dynamicpriority = (queues.front().processes[0].dynamicpriority - (tq-1));
             }
 
             // reset timeInThisQuantum for next time
