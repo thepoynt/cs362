@@ -10,7 +10,6 @@ class Process {
 		Process(int, int, int, int, int, int);
 		int pid, burst, arrival, priority, deadline, io, timeLeft, timeSpent, waited, endTime, turnaround, dynamicpriority, lastrun, ioLeft, timeInThisQuantum;
 		bool scheduled;
-		std::vector<int> startTimes, endTimes;
 		void setVars(std::string);
 		std::string toString();
 		void execute();
