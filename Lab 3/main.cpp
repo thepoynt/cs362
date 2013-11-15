@@ -16,6 +16,7 @@
 #include "process.h"
 #include "processQueue.h"
 #include <algorithm>
+#include <cmath>
 
 using std::cout;
 using std::cin;
@@ -41,11 +42,14 @@ void addToProcessQueues(Process, int);
 void printProcesses(deque<Process>);
 void printQueues(deque<ProcessQueue>);
 void printIntVector(vector<int>);
+void agingProcesses();
+void putNextOnQueueByPrio(int);
 
 
 int scheduler;
 int numQueues = 3;
 int tq;
+int agingtime;
 deque<Process> processes;     // for all processes read in from file
 deque<Process> queue;         // process queue for RTS
 deque<Process> iOqueue;       // queue for processes doing IO for HWS
@@ -89,6 +93,8 @@ int main () {
             }
             printf("Please enter the Time Quantum: ");
             cin >> tq;
+            printf("Please enter the Aging Time: ");
+            cin >> agingtime;
             runMFQS();
             done = true;
             break;
@@ -204,8 +210,90 @@ int readProcesses(string filename) {
 }
 
 int runMFQS() {
-   printf("Running MFQS with %d queues...\n", numQueues);
+    printf("Running MFQS with %d queues...\n", numQueues);
+    int clk = 0;
+    int tqcount = 0;
+    int currentqueue = 0;
+    
+    //make appropriate number of RR queues
+    for(int i = 0; i < numQueues - 1; ++i){
+        ProcessQueue pq;
+        queues.push_back(pq);   
+    }
+    //make fcfs queue
+    ProcessQueue fcfs;
+    queues.push_back(fcfs);
+    
+    bool keeprunning = true;
+    while(thereAreProcessesLeftToBeScheduled() || keeprunning){
+        
+        //put next ones on the queue
+        putNextOnQueueByPrio(clk);
+        
+        //do age-up first in order to follow assignment guidelines
+//        agingProcesses();
+        
+        //then do moving down queues, but run current process first.
+        //run current process
+        for(int i = 0; i < queues.size(); i++){
+            //if the current queue we're looking at isn't empty, run the first process in that queue
+            if(!queues[i].empty){
+                
+                //if the current queue is fcfs, run the whole process
+                if(i == queues.size()){
+                    int burst = queues[i].processes[0].timeLeft;
+                    for(int j = 0; j < burst; j++){
+                        queues[i].processes[0].execute;
+                        queues[i].processes[0].lastrun = 0;
+                        agingProcesses();
+                        if(queues[i].processes[0].timeLeft == 0){
+                            queues[i].pop_front();
+                        }
+                    }
+                    
+                //if the current queue is not fcfs, run for the designated tq for that queue
+                }else{
+                    //tq * 2^i will make the appropriate tq for that level.
+                    int timeToRun = tq * pow(2, i);
+                    for(int j = 0; j < timeToRun; j++){
+                        queues[i].processes[0].execute;
+                        queues[i].processes[0].lastrun = 0;
+                        agingProcesses();
+                        tqcount++;
+                        if(queues[i].processes[0].timeLeft == 0){
+                            //pop off the first process because it's done
+                            queues[i].pop_front();
+                            break;
+                        }else if(tqcount == timeToRun){
+                            //move down a queue if needed because it ran for the necessary time
+                            tqcount = 0;
+                            Process temp = queues[i].processes[0];
+                            queues[i].pop_front();
+                            queues[i+1].push_back(temp);
+                        }
+                    }
+                }
+                break;
+            }
+        }
+        clk++;
+    }
+    
    return 0;
+}
+
+void agingProcesses(){
+    //starts at 2 to ignore moving from 2nd queue up to 1st queue
+    for(int i = 2; i < queues.size(); i++){
+        for(int j = 0; j < queues[i].size(); j++){
+            if(queues[i].processes[j].lastrun == agingtime){
+                queues[i].processes[j].lastrun = 0;
+                Process relocateProcess = queues[i].processes[j];
+                queues[i].erase(queues[i].begin() + (j));
+                queues[i].push_back(relocateProcess);
+            }
+        }
+    }
 }
 
 int runRTS() {
@@ -464,6 +552,54 @@ int runHS() {
    gannt << clk << "\n";
    printf("Done with HWS!\n");
    return 0;
+}
+
+void putNextOnQueueByPrio(int clk) {
+    deque<Process> newProcesses;
+    
+    for (int i=0; i<processes.size(); i++) {
+        if (processes[i].arrival == clk && !processes[i].scheduled) { // get all processes coming in at this clock tick
+            totalProcessesScheduled++;
+            //if the newProcesses queue is empty, just add the next process to it
+            if(newProcesses.size() == 0){
+                newProcesses.push_front(processes[i]);   
+            }else{
+                bool wasScheduled = false;
+                
+                //if not empty, loop through the newProcesses queue to place is appropriately.
+                for(int j = 0; j < newProcesses.size(); j++){
+                    //first, if priorities are equal, sort by pid
+                    if(processes[i].priority == newProcesses[j].priority){
+                        if(processes[i].pid < newProcesses[j].pid){
+                            newProcesses.insert(newProcesses.begin() + (j), processes[i]);
+                        }else{
+                            newProcesses.insert(newProcesses.begin() + (j + 1), processes[i]);   
+                        }
+                        wasScheduled = true;
+                    //next, if the next process to schedule has a priority higher than the current one in the queue
+                    //insert that at that spot
+                    }else if(processes[i].priority > newProcesses[j].priority){
+                        newProcesses.insert(newProcesses.begin() + (j), processes[i]);
+                        wasScheduled = true;
+                    }
+                }
+                //if the current process wasn't scheduled, put it at the end of the new set of processes
+                if(!wasScheduled){
+                    newProcesses.push_back(processes[i]);
+                }
+            }
+        }
+    }
+    
+    //put newProcesses into queues
+    for(int i = 0; i < newProcesses(); i++){
+        newProcesses[i].scheduled = true;
+        newProcesses[i].startTimes.push_back(clk);
+        queues.front().push_back(processes[i]);
+        #ifdef DEBUG
+            cout << clk << ": Putting process (" << processes[i].pid << ") in queue\n";
+        #endif
+    }
 }
 
 // Bring in all incoming processes on this clock tick and put them in the queue based on their deadline (for RTS)
