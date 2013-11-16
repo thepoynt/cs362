@@ -25,7 +25,7 @@ using std::deque;
 using std::string;
 using std::make_heap;
 
-// #define DEBUG 0;
+#define DEBUG 0;
 
 
 int runMFQS();
@@ -61,16 +61,24 @@ int totalTurnaroundTime = 0;
 int totalProcessesScheduled = 0;
 std::ostringstream gannt;
 
-
+// custom comparator for sorting processes by arrival time
+bool sortProcesses (const Process &a, const Process &b) { 
+   return a.arrival < b.arrival;
+}
 
 int main () {
    bool done = false;
 
    // Read in processes from file
-   if (!readProcesses("1m_processes")) {
+   if (!readProcesses("testFile")) {
       perror("Error reading file");
       exit(1);
    }
+
+   // sort processes by arrival time
+   std::sort(processes.begin(), processes.end(), sortProcesses);
+
+
    #ifdef DEBUG
       printProcesses();
    #endif
@@ -120,7 +128,7 @@ int main () {
             cout << "ATT: " << avgTurn << "\n";
 
             // Total number of processes scheduled
-            cout << "Process scheduled: " << processes.size() << "\n";
+            cout << "Process scheduled: " << attempted.size() << "\n";
             cout << "Process finished: " << finished.size() << "\n";
 
             break;
@@ -159,6 +167,7 @@ int main () {
       }
    }
 
+   exit(0);
    return 0; 
 }
 
@@ -183,7 +192,7 @@ int readProcesses(string filename) {
       return 0;
    } 
 }
-
+ 
 int runMFQS() {
     printf("Running MFQS with %d queues...\n", numQueues);
     int clk = 0;
@@ -210,19 +219,19 @@ int runMFQS() {
         
         //then do moving down queues, but run current process first.
         //run current process
-        for(int i = 0; i < queues.size(); i++){
+        // for(int i = 0; i < queues.size(); i++){
             //if the current queue we're looking at isn't empty, run the first process in that queue
-            if(!queues[i].empty){
+            if(!queues[currentqueue].processes.empty()){
                 
                 //if the current queue is fcfs, run the whole process
-                if(i == queues.size()){
+                if(currentqueue == queues.size()){
                     int burst = queues[i].processes[0].timeLeft;
                     for(int j = 0; j < burst; j++){
-                        queues[i].processes[0].execute;
+                        queues[i].processes[0].execute();
                         queues[i].processes[0].lastrun = 0;
                         agingProcesses();
                         if(queues[i].processes[0].timeLeft == 0){
-                            queues[i].pop_front();
+                            queues[i].processes.pop_front();
                         }
                     }
                     
@@ -231,26 +240,26 @@ int runMFQS() {
                     //tq * 2^i will make the appropriate tq for that level.
                     int timeToRun = tq * pow(2, i);
                     for(int j = 0; j < timeToRun; j++){
-                        queues[i].processes[0].execute;
+                        queues[i].processes[0].execute();
                         queues[i].processes[0].lastrun = 0;
                         agingProcesses();
                         tqcount++;
                         if(queues[i].processes[0].timeLeft == 0){
                             //pop off the first process because it's done
-                            queues[i].pop_front();
+                            queues[i].processes.pop_front();
                             break;
                         }else if(tqcount == timeToRun){
                             //move down a queue if needed because it ran for the necessary time
                             tqcount = 0;
                             Process temp = queues[i].processes[0];
-                            queues[i].pop_front();
-                            queues[i+1].push_back(temp);
+                            queues[i].processes.pop_front();
+                            queues[i+1].processes.push_back(temp);
                         }
                     }
                 }
                 break;
             }
-        }
+        // }
         clk++;
     }
     
@@ -260,12 +269,12 @@ int runMFQS() {
 void agingProcesses(){
     //starts at 2 to ignore moving from 2nd queue up to 1st queue
     for(int i = 2; i < queues.size(); i++){
-        for(int j = 0; j < queues[i].size(); j++){
+        for(int j = 0; j < queues[i].processes.size(); j++){
             if(queues[i].processes[j].lastrun == agingtime){
                 queues[i].processes[j].lastrun = 0;
                 Process relocateProcess = queues[i].processes[j];
-                queues[i].erase(queues[i].begin() + (j));
-                queues[i].push_back(relocateProcess);
+                queues[i].processes.erase(queues[i].processes.begin() + (j));
+                queues[i].processes.push_back(relocateProcess);
             }
         }
     }
@@ -278,7 +287,7 @@ int runRTS() {
 
    while (thereAreProcessesLeftToBeScheduled() || queue.size() > 0) {
 
-      cout << "\r" << finished.size() << " processes completed.       " << std::flush;
+      // cout << "\r" << finished.size() << " processes completed." << std::flush;
 
       // Bring in any new processes at current clok, putting them in queue based on deadline
       putNextOnQueueByDeadline(clk);
@@ -518,117 +527,125 @@ int runHS() {
 }
 
 void putNextOnQueueByPrio(int clk) {
-    deque<Process> newProcesses;
+   deque<Process> newProcesses;
     
-    for (int i=0; i<processes.size(); i++) {
-        if (processes[i].arrival == clk && !processes[i].scheduled) { // get all processes coming in at this clock tick
-            totalProcessesScheduled++;
-            //if the newProcesses queue is empty, just add the next process to it
-            if(newProcesses.size() == 0){
-                newProcesses.push_front(processes[i]);   
-            }else{
-                bool wasScheduled = false;
-                
-                //if not empty, loop through the newProcesses queue to place is appropriately.
-                for(int j = 0; j < newProcesses.size(); j++){
-                    //first, if priorities are equal, sort by pid
-                    if(processes[i].priority == newProcesses[j].priority){
-                        if(processes[i].pid < newProcesses[j].pid){
-                            newProcesses.insert(newProcesses.begin() + (j), processes[i]);
-                        }else{
-                            newProcesses.insert(newProcesses.begin() + (j + 1), processes[i]);   
-                        }
-                        wasScheduled = true;
-                    //next, if the next process to schedule has a priority higher than the current one in the queue
-                    //insert that at that spot
-                    }else if(processes[i].priority > newProcesses[j].priority){
-                        newProcesses.insert(newProcesses.begin() + (j), processes[i]);
-                        wasScheduled = true;
-                    }
-                }
-                //if the current process wasn't scheduled, put it at the end of the new set of processes
-                if(!wasScheduled){
-                    newProcesses.push_back(processes[i]);
-                }
+   while (processes[0].arrival == clk) {
+      Process p = processes[0];
+      totalProcessesScheduled++;
+      //if the newProcesses queue is empty, just add the next process to it
+      if(newProcesses.size() == 0){
+         newProcesses.push_front(p);   
+      }else{
+         int i = 0;
+         for(i = 0; i < newProcesses.size(); i++) {
+            if (p < newProcesses[i]) { // put new process in newProcesses based on priority
+               break;
             }
-        }
-    }
+         }
+         newProcesses.insert(newProcesses.begin() + i, p);
+
+          // bool wasScheduled = false;
+          
+          // //if not empty, loop through the newProcesses queue to place is appropriately.
+          // for(int j = 0; j < newProcesses.size(); j++){
+          //     //first, if priorities are equal, sort by pid
+          //     if(p.priority == newProcesses[j].priority){
+          //         if(p.pid < newProcesses[j].pid){
+          //             newProcesses.insert(newProcesses.begin() + (j), p);
+          //         }else{
+          //             newProcesses.insert(newProcesses.begin() + (j + 1), p);   
+          //         }
+          //         wasScheduled = true;
+          //     //next, if the next process to schedule has a priority higher than the current one in the queue
+          //     //insert that at that spot
+          //     }else if(p.priority > newProcesses[j].priority){
+          //         newProcesses.insert(newProcesses.begin() + (j), p);
+          //         wasScheduled = true;
+          //     }
+          // }
+          // //if the current process wasn't scheduled, put it at the end of the new set of processes
+          // if(!wasScheduled){
+          //     newProcesses.push_back(p);
+          // }
+      }
+      processes.pop_front();
+   }
     
-    //put newProcesses into queues
-    for(int i = 0; i < newProcesses(); i++){
-        newProcesses[i].scheduled = true;
-        newProcesses[i].startTimes.push_back(clk);
-        queues.front().push_back(processes[i]);
-        #ifdef DEBUG
-            cout << clk << ": Putting process (" << processes[i].pid << ") in queue\n";
-        #endif
-    }
+   //put newProcesses into queues
+   for(int i = 0; i < newProcesses.size(); i++){
+      newProcesses[i].scheduled = true;
+      // newProcesses[i].startTimes.push_back(clk);
+      queues.front().processes.push_back(processes[i]);
+      #ifdef DEBUG
+         cout << clk << ": Putting process (" << newProcesses[i].pid << ") in queue\n";
+      #endif
+   }
 }
 
 // Bring in all incoming processes on this clock tick and put them in the queue based on their deadline (for RTS)
 void putNextOnQueueByDeadline(int clk) {
-   for (int i=0; i<processes.size(); i++) {
-      if (processes[i].arrival == clk && !processes[i].scheduled) { // get all processes coming in at this clock tick
-         totalProcessesScheduled++;
-         if (queue.size() == 0) { // if there's no processes in the queue, just add it
-            #ifdef DEBUG
-               cout << clk << ": Putting process (" << processes[i].pid << ") on beginning of queue\n";
-            #endif
-            processes[i].scheduled = true;
-            queue.push_front(processes[i]);
-         } else {
-            bool inserted = false;
-            for (int j=0; j<queue.size(); j++) {
-               if (processes[i].deadline < queue[j].deadline) { // put it in before the first one with a later deadline
-                  #ifdef DEBUG
-                     cout << clk << ": Putting process (" << processes[i].pid << ") at position " << j << " in queue\n";
-                  #endif
-                  processes[i].scheduled = true;
-                  queue.insert(queue.begin() + (j), processes[i]);
-                  inserted = true;
-                  break;
-               }
-            }
-            if (!inserted) { // process[i] has a later deadline than any other process
+   while (processes[0].arrival == clk) {
+      Process p = processes[0];
+      totalProcessesScheduled++;
+      if (queue.size() == 0) { // if there's no processes in the queue, just add it
+         #ifdef DEBUG
+            cout << clk << ": Putting process (" << p.pid << ") on beginning of queue\n";
+         #endif
+         p.scheduled = true;
+         queue.push_front(p);
+      } else {
+         bool inserted = false;
+         for (int j=0; j<queue.size(); j++) {
+            if (p.deadline < queue[j].deadline) { // put it in before the first one with a later deadline
                #ifdef DEBUG
-                  cout << clk << ": Putting process (" << processes[i].pid << ") at end of queue\n";
+                  cout << clk << ": Putting process (" << p.pid << ") at position " << j << " in queue\n";
                #endif
-               processes[i].scheduled = true;
-               queue.push_back(processes[i]);
+               p.scheduled = true;
+               queue.insert(queue.begin() + (j), p);
+               inserted = true;
+               break;
             }
          }
+         if (!inserted) { // process[i] has a later deadline than any other process
+            #ifdef DEBUG
+               cout << clk << ": Putting process (" << p.pid << ") at end of queue\n";
+            #endif
+            p.scheduled = true;
+            queue.push_back(p);
+         }
       }
+      processes.pop_front();
    }
 }
 
 // Bring in all incoming processes by clock tick and put them in appropriate priority queues (for HWS)
 void putNextOnProcessQueues(int clk) {
    std::sort_heap(queues.begin(), queues.end());
-   for (int i=0; i < processes.size(); i++) { // for every process
-      if (processes[i].arrival == clk && !processes[i].scheduled) {
-         int j = 0;
-         for (j=0; j < queues.size(); j++) { // find the process queue it should go in
-            if (processes[i].priority == queues[j].priority) {
-               processes[i].scheduled = true;
-               queues[j].addProcess(processes[i]);
-               #ifdef DEBUG
-                  cout << clk << ": Putting process (" << processes[i].pid << ") on queue\n";
-               #endif
-               break;
-            }
-         }
-         if (j == queues.size()) {
-            // no priority queue made for this priority yet, make a new one
-            ProcessQueue pq;
-            processes[i].scheduled = true;
-            pq.addProcess(processes[i]);
-            queues.push_back(pq);
-            std::push_heap(queues.begin(), queues.end());
-             #ifdef DEBUG
-               cout << clk << ": Putting process (" << processes[i].pid << ") on beginning of new queue\n";
+   while (processes[0].arrival == clk) {
+      Process p = processes[0];
+      int j = 0;
+      for (j=0; j < queues.size(); j++) { // find the process queue it should go in
+         if (p.priority == queues[j].priority) {
+            p.scheduled = true;
+            queues[j].addProcess(p);
+            #ifdef DEBUG
+               cout << clk << ": Putting process (" << p.pid << ") on queue\n";
             #endif
+            break;
          }
       }
+      if (j == queues.size()) {
+         // no priority queue made for this priority yet, make a new one
+         ProcessQueue pq;
+         p.scheduled = true;
+         pq.addProcess(p);
+         queues.push_back(pq);
+         std::push_heap(queues.begin(), queues.end());
+          #ifdef DEBUG
+            cout << clk << ": Putting process (" << p.pid << ") on beginning of new queue\n";
+         #endif
+      }
+      processes.pop_front();
    }
    std::make_heap(queues.begin(), queues.end());
 }
