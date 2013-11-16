@@ -39,5 +39,6 @@ std::string ProcessQueue::toString() {
 	for (int i=1; i<processes.size(); i++) {
 		oss << ", " << processes[i].pid;
 	}
+	oss << " ";
 	return oss.str();
 }
