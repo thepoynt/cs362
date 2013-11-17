@@ -35,10 +35,13 @@ void ProcessQueue::addProcess(Process p) {
 
 std::string ProcessQueue::toString() {
 	std::ostringstream oss;
-	oss << processes[0].pid;
-	for (int i=1; i<processes.size(); i++) {
-		oss << ", " << processes[i].pid;
+	if (processes.size() > 0) {
+		oss << processes[0].pid;
+		for (int i=1; i<processes.size(); i++) {
+			oss << ", " << processes[i].pid;
+		}
+	} else {
+		oss << " ";
 	}
-	oss << " ";
 	return oss.str();
 }

@@ -17,6 +17,7 @@
 #include "processQueue.h"
 #include <algorithm>
 #include <cmath>
+#include <time.h>
 
 using std::cout;
 using std::cin;
@@ -25,7 +26,7 @@ using std::deque;
 using std::string;
 using std::make_heap;
 
-#define DEBUG 0;
+// #define DEBUG 0;
 
 
 int runMFQS();
@@ -62,6 +63,7 @@ int totalTurnaroundTime = 0;
 int totalProcessesScheduled = 0;
 std::ostringstream gannt;
 int numInQueues = 0;
+time_t start,end;
 
 // custom comparator for sorting processes by arrival time
 bool sortProcesses (const Process &a, const Process &b) { 
@@ -72,7 +74,7 @@ int main () {
    bool done = false;
 
    // Read in processes from file
-   if (!readProcesses("HWS starving")) {
+   if (!readProcesses("MFQS starving")) {
       perror("Error reading file");
       exit(1);
    }
@@ -106,8 +108,35 @@ int main () {
             cin >> tq;
             printf("Please enter the Aging Time: ");
             cin >> agingtime;
+            time (&start); // start timer
+
             runMFQS();
+
+            time (&end);
             done = true;
+
+            // ====== Results ======
+
+            // "Gannt chart"
+            cout << gannt.str();
+
+            // Average Waiting Time
+            double avgWaitTime = totalWaitTime;
+            avgWaitTime = avgWaitTime/totalProcessesScheduled;
+            cout <<  "AWT: " << avgWaitTime << "\n";
+
+            // Average Turnaround Time
+            double avgTurn = totalTurnaroundTime;
+            avgTurn = avgTurn/totalProcessesScheduled;
+            cout << "ATT: " << avgTurn << "\n";
+
+            // Total number of processes scheduled
+            cout << "Processes scheduled: " << finished.size() << "\n";
+
+            // Time elapsed
+            double duration = difftime (end,start);
+            std::cout << "\nTime elapsed: " << duration;
+
             break;
          }{ 
          case 2:
@@ -130,8 +159,8 @@ int main () {
             cout << "ATT: " << avgTurn << "\n";
 
             // Total number of processes scheduled
-            cout << "Process scheduled: " << attempted.size() << "\n";
-            cout << "Process finished: " << finished.size() << "\n";
+            cout << "Processes scheduled: " << attempted.size() << "\n";
+            cout << "Processes finished: " << finished.size() << "\n";
 
             break;
          }{
@@ -160,7 +189,7 @@ int main () {
             cout << "ATT: " << avgTurn << "\n";
 
             // Total number of processes scheduled
-            cout << "Process scheduled: " << processes.size() << "\n";
+            cout << "Processes scheduled: " << processes.size() << "\n";
             break;
          }{
          default:
@@ -225,14 +254,22 @@ int runMFQS() {
         // for(int i = 0; i < queues.size(); i++){
          //if the current queue we're looking at isn't empty (which it shouldn't be, but just in case), run the first process in that queue
          if (!queues[currentqueue].processes.empty()) {
-            cout << clk << " - current queue " << currentqueue << ":  ";
-            printQueues(queues);
+            #ifdef DEBUG
+               cout << clk << " - current queue " << currentqueue << ":  ";
+               printQueues(queues);
+            #endif
+
             queues[currentqueue].processes[0].execute();
+            totalWaitTime += (numInQueues - 1); // add wating time for all other processes
+            queues[currentqueue].processes[0].lastrun = clk;
             queues[currentqueue].processes[0].timeInThisQuantum++;
+
 
             // if it has now finished, remove it and update the current queue
             if(queues[currentqueue].processes[0].timeLeft == 0){
                numInQueues--;
+               finished.push_back(queues[currentqueue].processes[0]);
+               totalTurnaroundTime += (clk - queues[currentqueue].processes[0].arrival);
                //pop off the first process because it's done
                queues[currentqueue].processes.pop_front();
                // update the current queue - a new process could have come into a higher queue while this process was running, or we might go down a level
@@ -244,18 +281,6 @@ int runMFQS() {
             // if the current queue is fcfs
             if (currentqueue == queues.size() - 1) {
                // don't do anything, just go on to the next clock tick. This process will finish before we move on to the next (FCFS)
-
-               // int burst = queues[currentqueue].processes[0].timeLeft;
-               // for(int j = 0; j < burst; j++){
-               //    queues[currentqueue].processes[0].execute();
-               //    queues[currentqueue].processes[0].lastrun = clk;
-               //    agingProcesses();
-               //    if(queues[currentqueue].processes[0].timeLeft == 0){
-               //       gannt << clk << " | ";
-               //       queues[currentqueue].processes.pop_front();
-               //    }
-               // }
-
                  
             //if the current queue is not fcfs, cut off at the tq for that queue
             } else {
@@ -265,26 +290,8 @@ int runMFQS() {
                   queues[currentqueue].processes[0].timeInThisQuantum = 0;
                   queues[currentqueue+1].processes.push_back(queues[currentqueue].processes[0]);
                   queues[currentqueue].processes.pop_front();
+                  currentqueue = updateCurrentQueue();
                }
-               // //tq * 2^i will make the appropriate tq for that level.
-               // int timeToRun = tq * pow(2, i);
-               // for(int j = 0; j < timeToRun; j++){
-               //    queues[currentqueue].processes[0].execute();
-               //    queues[currentqueue].processes[0].lastrun = clk;
-               //    agingProcesses();
-               //    tqcount++;
-               //    if(queues[currentqueue].processes[0].timeLeft == 0){
-               //       //pop off the first process because it's done
-               //       queues[currentqueue].processes.pop_front();
-               //       break;
-               //    }else if(tqcount == timeToRun){
-               //       //move down a queue if needed because it ran for the necessary time
-               //       tqcount = 0;
-               //       Process temp = queues[i].processes[0];
-               //       queues[currentqueue].processes.pop_front();
-               //       queues[currentqueue+1].processes.push_back(temp);
-               //    }
-               // }
             }
 
             // age any processes that need it
@@ -293,7 +300,7 @@ int runMFQS() {
         // }
         clk++;
     }
-   printf("Done with RTS!\n");
+   printf("Done with MFQS!\n");
    return 0;
 }
 
@@ -302,7 +309,10 @@ void agingProcesses(int clk){
    for(int i = 2; i < queues.size(); i++){
       for(int j = 0; j < queues[i].processes.size(); j++){
          if((clk - queues[i].processes[j].lastrun) >= agingtime){
-            queues[i].processes.push_back(queues[i].processes[j]);
+            #ifdef DEBUG
+               cout << "starving process (" << queues[i].processes[j].pid << ") found - aging up\n";
+            #endif
+            queues[(i-1)].processes.push_back(queues[i].processes[j]);
             queues[i].processes.erase(queues[i].processes.begin() + (j));
          }
       }
@@ -310,6 +320,7 @@ void agingProcesses(int clk){
 }
 
 int updateCurrentQueue() {
+   // return first queue that has processes in it
    for (int i = 0; i < queues.size(); i++) {
       if (queues[i].processes.size() > 0) {
          return i;
