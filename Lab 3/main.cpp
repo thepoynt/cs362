@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <time.h>
+#include <typeinfo>
 
 using std::cout;
 using std::cin;
@@ -35,7 +36,7 @@ int runHS();
 int readProcesses(string);
 void stringToProcess(string);
 void putNextOnQueueByDeadline(int);
-bool thereAreProcessesLeftToBeScheduled();
+// bool thereAreProcessesLeftToBeScheduled();
 void putNextOnQueueByPriorityHS(int);
 void scheduleMeHS(int, Process);    
 void putNextOnProcessQueues(int);
@@ -58,8 +59,8 @@ deque<Process> iOqueue;       // queue for processes doing IO for HWS
 deque<Process> finished;      // for all processes that sucessfully finished
 deque<Process> attempted;     // for all processes, after they've been processed (whether they finished or not) so we have data about their execution
 deque<ProcessQueue> queues;   // A queue of queues for HWS
-int totalWaitTime = 0;
-int totalTurnaroundTime = 0;
+double totalWaitTime = 0;
+double totalTurnaroundTime = 0;
 int totalProcessesScheduled = 0;
 std::ostringstream gannt;
 int numInQueues = 0;
@@ -74,7 +75,7 @@ int main () {
    bool done = false;
 
    // Read in processes from file
-   if (!readProcesses("MFQS starving")) {
+   if (!readProcesses("300")) {
       perror("Error reading file");
       exit(1);
    }
@@ -82,9 +83,9 @@ int main () {
    // sort processes by arrival time
    std::sort(processes.begin(), processes.end(), sortProcesses);
 
-
+   // printProcesses();
    #ifdef DEBUG
-      printProcesses();
+      // printProcesses();
    #endif
    cout << "Number of processes read in: " << processes.size() << "\n";
 
@@ -112,7 +113,7 @@ int main () {
 
             runMFQS();
 
-            time (&end);
+            time (&end); // end timer
             done = true;
 
             // ====== Results ======
@@ -130,17 +131,23 @@ int main () {
             avgTurn = avgTurn/totalProcessesScheduled;
             cout << "ATT: " << avgTurn << "\n";
 
+            cout << totalWaitTime << "   " << totalTurnaroundTime << "\n";
+
             // Total number of processes scheduled
-            cout << "Processes scheduled: " << finished.size() << "\n";
+            cout << "Processes scheduled: " << totalProcessesScheduled << "\n";
 
             // Time elapsed
             double duration = difftime (end,start);
-            std::cout << "\nTime elapsed: " << duration;
+            cout << "Time elapsed: " << duration << "\n";
 
             break;
          }{ 
          case 2:
+            time (&start); // start timer
+
             runRTS();
+
+            time (&end); // end timer
             done = true;
 
             // ====== Results ======
@@ -162,12 +169,20 @@ int main () {
             cout << "Processes scheduled: " << attempted.size() << "\n";
             cout << "Processes finished: " << finished.size() << "\n";
 
+            // Time elapsed
+            double duration = difftime (end,start);
+            cout << "Time elapsed: " << duration << "\n";
+
             break;
          }{
          case 3:
             printf("Please enter the Time Quantum (2 or greater): ");
             cin >> tq;
+            time (&start); // start timer
+
             runHS();
+
+            time (&end); // end timer
             done = true;
 
             // ====== Results ======
@@ -177,19 +192,27 @@ int main () {
 
             // Average Waiting Time
             double avgWaitTime = totalWaitTime;
-            avgWaitTime = avgWaitTime/finished.size();
+            avgWaitTime = avgWaitTime/totalProcessesScheduled;
             cout <<  "AWT: " << avgWaitTime << "\n";
 
             // Average Turnaround Time
-            double avgTurn;
-            for (int i=0; i < finished.size(); i++) {
-               avgTurn += finished[i].turnaround;
-            }
-            avgTurn = avgTurn/finished.size();
+            // double avgTurn;
+            // for (int i=0; i < finished.size(); i++) {
+            //    avgTurn += finished[i].turnaround;
+            // }
+            // avgTurn = avgTurn/finished.size();
+            // cout << "ATT: " << avgTurn << "\n";
+            double avgTurn = totalTurnaroundTime;
+            avgTurn = avgTurn/totalProcessesScheduled;
             cout << "ATT: " << avgTurn << "\n";
 
             // Total number of processes scheduled
-            cout << "Processes scheduled: " << processes.size() << "\n";
+            cout << "Processes scheduled: " << totalProcessesScheduled << " " << finished.size() << "\n";
+
+            // Time elapsed
+            double duration = difftime (end,start);
+            cout << "Time elapsed: " << duration << "\n";
+
             break;
          }{
          default:
@@ -246,12 +269,6 @@ int runMFQS() {
         //put next ones on the queue
         putNextOnQueueByPrio(clk);
         
-        //do age-up first in order to follow assignment guidelines
-//        agingProcesses();
-        
-        //then do moving down queues, but run current process first.
-        //run current process
-        // for(int i = 0; i < queues.size(); i++){
          //if the current queue we're looking at isn't empty (which it shouldn't be, but just in case), run the first process in that queue
          if (!queues[currentqueue].processes.empty()) {
             #ifdef DEBUG
@@ -269,7 +286,7 @@ int runMFQS() {
             if(queues[currentqueue].processes[0].timeLeft == 0){
                numInQueues--;
                finished.push_back(queues[currentqueue].processes[0]);
-               totalTurnaroundTime += (clk - queues[currentqueue].processes[0].arrival);
+               totalTurnaroundTime += (clk - queues[currentqueue].processes[0].arrival + 1);
                //pop off the first process because it's done
                queues[currentqueue].processes.pop_front();
                // update the current queue - a new process could have come into a higher queue while this process was running, or we might go down a level
@@ -335,7 +352,7 @@ int runRTS() {
    int clk = 0; // Clock counter
    Process lastrun;
 
-   while (thereAreProcessesLeftToBeScheduled() || queue.size() > 0) {
+   while (processes.size() > 0 || queue.size() > 0) {
 
       // cout << "\r" << finished.size() << " processes completed." << std::flush;
 
@@ -351,9 +368,10 @@ int runRTS() {
                   cout << clk << ": Process " << queue[i].pid << " ran out of time!\n";
                #endif
                totalProcessesScheduled--; // not counted towards total number of processes scheduled
-               totalTurnaroundTime -= (clk - queue[i].arrival); // turnaround time also not counted
+               // totalTurnaroundTime -= (clk - queue[i].arrival); // turnaround time also not counted
                attempted.push_back(queue[i]);
                queue.erase(queue.begin() + i);
+               numInQueues--;
             }
          }
 
@@ -376,19 +394,22 @@ int runRTS() {
             #endif
             queue[0].endTime = clk;
             queue[0].turnaround = clk - queue[0].arrival;
+            totalTurnaroundTime += (clk - queue[0].arrival);
             gannt << clk+1 << " | ";
             attempted.push_back(queue[0]); // Not only attempted, but...
             finished.push_back(queue[0]);  //   finished as well
             queue.pop_front();
+            numInQueues--;
             
          }
 
          // increment the waiting time for all other processes in queue
-         for (int i = 1; i<queue.size(); i++) {
-            totalWaitTime++;
-            totalTurnaroundTime++; // this gets incremented for all other processes, as well as the current process (all processes on queue are having their turnaround time incremented, while only all non-running processes get wait time incremented)
-         }
-         totalTurnaroundTime++; // Increment for current process. See comment above ^^
+         totalWaitTime += (numInQueues - 1);
+         // for (int i = 1; i<queue.size(); i++) {
+         //    totalWaitTime++;
+         //    totalTurnaroundTime++; // this gets incremented for all other processes, as well as the current process (all processes on queue are having their turnaround time incremented, while only all non-running processes get wait time incremented)
+         // }
+         // totalTurnaroundTime++; // Increment for current process. See comment above ^^
       }
 
       clk++;
@@ -400,22 +421,22 @@ int runRTS() {
 }
 
 int runHS() {
-    printf("Running HS...\n");
+    printf("Running HWS...\n");
     int clk = 0;
     int tqcount = 0;
     make_heap(queues.begin(), queues.end()); // put those queues into heap form
     Process lastrun;
+    lastrun.setVars("0  0  0  0  0  0");
     bool first = true;
     
-   while (thereAreProcessesLeftToBeScheduled() || queues.size() > 0 || iOqueue.size() > 0) {
-       cout << "\r" << finished.size() << " processes completed.       " << std::flush;
+   while (processes.size() > 0 || queues.size() > 0 || iOqueue.size() > 0) {
 
       //put new incoming processes in their respective queues
       putNextOnProcessQueues(clk);
-     
 
       //only do the following if the queues have something in them (could not have any scheduled or all processes could be in IO)
       if (queues.size() > 0) {
+
 
          //check for starving processes, mod priority as necessary
          if (clk % 100 == 0) {
@@ -426,7 +447,6 @@ int runHS() {
 
             deque<Process> tempQueue;
 
-            printQueues(queues);
             for (int i = 0; i < queuesOld.size(); i++) {
                for (int j=0; j < queuesOld[i].processes.size(); j++) {
                   //only change if hasn't been run in >=100 clock ticks
@@ -442,7 +462,6 @@ int runHS() {
                         } else {
                            queuesOld[i].processes[j].dynamicpriority = queuesOld[i].processes[j].dynamicpriority + 10;
                         }
-                        // addToProcessQueues(queuesOld[i].processes[j], clk); // add newly updated process to real queue
                      }
                   }
                   tempQueue.push_back(queuesOld[i].processes[j]);
@@ -457,9 +476,12 @@ int runHS() {
 
 
          #ifdef DEBUG
-            printQueues(queues);
+            // printQueues(queues);
          #endif
 
+         if (queues.front().processes[0].pid == 147) {
+
+         }
          if (queues.front().processes[0].pid != lastrun.pid) {
             if (lastrun.endTime == 0) // process is still not finished, but need to print out end of current "burst"
                gannt << clk << " | ";
@@ -469,8 +491,10 @@ int runHS() {
          // look at first process in first queue
          // execute
          #ifdef DEBUG
-            cout << clk << ": (" << queues.front().processes[0].pid << ") running (running for " << (queues.front().processes[0].timeInThisQuantum + 1) << ")\n";
+            cout << clk << ": (" << queues.front().processes[0].pid << ") running (running for " << (queues.front().processes[0].timeInThisQuantum + 1) << ") in queue " << queues.front().priority << "\n";
          #endif
+         cout << clk << ": (" << queues.front().processes[0].pid << ") running (running for " << (queues.front().processes[0].timeInThisQuantum + 1) << ") in queue " << queues.front().priority << "\n";
+         
          queues.front().processes[0].execute();
          lastrun = queues.front().processes[0];
 
@@ -480,74 +504,78 @@ int runHS() {
          // increment that process' timeInThisQuantum
          queues.front().processes[0].timeInThisQuantum++;
 
-         // add to wait time for all other processes
-         for (int i = 0; i < queues.size(); i++) {
-            for (int j=0; j < queues[i].processes.size(); j++) {
-               totalWaitTime++;
-            }
-         }
-         totalWaitTime--; // subtract one to account for the current process not waiting (it's running)
-
          //if process completed, "kick" it from the queue
          if(queues.front().processes[0].timeLeft == 0){
             #ifdef DEBUG
                cout << clk << ": (" << queues.front().processes[0].pid << ") Ended\n";
             #endif
+            cout << clk << ": (" << queues.front().processes[0].pid << ") Ended\n";
+
+
             gannt << clk+1 << " | ";
             queues.front().processes[0].endTime = clk;
             // gannt << clk+1 << " | ";
             queues.front().processes[0].turnaround = clk - queues.front().processes[0].arrival;
+            totalTurnaroundTime += (clk - queues.front().processes[0].arrival);
             finished.push_back(queues.front().processes[0]);
             // remove current process from queue
             queues.front().processes.pop_front();
+            numInQueues--;
 
             // if that queue is now empty, remove it from queues
             if (queues.front().processes.empty()) {
                std::pop_heap(queues.begin(), queues.end()); 
                queues.pop_back();
             }
-
-            // starting next process next tick
-            // gannt << clk+1 << " <- Process " << queues.front().processes[0].pid << " -> ";
-           
          }
 
-         // if the process is still running at tq - 1, time to interrupt for IO
-         if (queues.front().processes[0].timeInThisQuantum == tq - 1) {
-            #ifdef DEBUG
-               cout << clk << ": (" << queues.front().processes[0].pid << ") Hit time quantum IO\n";
-            #endif
-            
-            //change priority of process based on clock ticks ran
-            //if the change would put the dynamic priority lower than the original priority, set it to the original priority
-            if((queues.front().processes[0].dynamicpriority - (tq-1)) < queues.front().processes[0].priority){
-               queues.front().processes[0].dynamicpriority = queues.front().processes[0].priority;   
-            }else{ //otherwise, just subtract the amount it's run this time around (tq - 1)
-               queues.front().processes[0].dynamicpriority = (queues.front().processes[0].dynamicpriority - (tq-1));
-            }
+         if (queues.size() > 0) { // could have just emptied the queues
 
-            // reset timeInThisQuantum for next time
-            queues.front().processes[0].timeInThisQuantum = 0;
-
-            //if this has I/O, run it
-            if(queues.front().processes[0].io > 0) {
+            // if the process is still running at tq - 1, time to interrupt for IO
+            if (queues.front().processes[0].timeInThisQuantum == (tq - 1)) {
                #ifdef DEBUG
-                  cout << clk << ": (" << queues.front().processes[0].pid << ") Going to IO queue\n";
+                  cout << clk << ": (" << queues.front().processes[0].pid << ") Hit time quantum IO\n";
                #endif
-               iOqueue.push_back(queues.front().processes[0]);
-               // gannt << clk+1 << " | ";
-               queues.front().processes.pop_front(); // remove current process from queue
-               // if that queue is now empty, remove it from queues
-               if (queues.front().processes.empty()) {
-                  std::pop_heap(queues.begin(), queues.end()); 
-                  queues.pop_back();
+               
+               //change priority of process based on clock ticks ran
+               //if the change would put the dynamic priority lower than the original priority, set it to the original priority
+               if((queues.front().processes[0].dynamicpriority - (tq-1)) < queues.front().processes[0].priority){
+                  queues.front().processes[0].dynamicpriority = queues.front().processes[0].priority;   
+               }else{ //otherwise, just subtract the amount it's run this time around (tq - 1)
+                  queues.front().processes[0].dynamicpriority = (queues.front().processes[0].dynamicpriority - (tq-1));
                }
-            } else { // if it doesnt do IO, just put it in new queue
-               addToProcessQueues(queues.front().processes[0], clk);
-               queues.front().processes.pop_front();
+
+               // reset timeInThisQuantum for next time
+               queues.front().processes[0].timeInThisQuantum = 0;
+
+               //if this has I/O, run it
+               if(queues.front().processes[0].io > 0) {
+                  #ifdef DEBUG
+                     cout << clk << ": (" << queues.front().processes[0].pid << ") Going to IO queue\n";
+                  #endif
+                  cout << clk << ": (" << queues.front().processes[0].pid << ") Going to IO queue\n";
+
+                  iOqueue.push_back(queues.front().processes[0]);
+                  // gannt << clk+1 << " | ";
+                  queues.front().processes.pop_front(); // remove current process from queue
+                  // if that queue is now empty, remove it from queues
+                  if (queues.front().processes.empty()) {
+                     std::pop_heap(queues.begin(), queues.end()); 
+                     queues.pop_back();
+                  }
+               } else { // if it doesnt do IO, just put it in new queue
+                  addToProcessQueues(queues.front().processes[0], clk);
+                  queues.front().processes.pop_front();
+               }
             }
          }
       }
+
+      // up the waiting time 
+      if (queues.size() > 0 || iOqueue.size() > 0) {
+         totalWaitTime += (numInQueues - 1);
+      }
+
 
       // loop through iOqueue, searching for processes that are done with I/O
       for(int i = 0; i < iOqueue.size(); i++){
@@ -571,6 +599,7 @@ int runHS() {
         
       clk++;
    }
+
    gannt << "\n";
    printf("Done with HWS!\n");
    return 0;
@@ -595,29 +624,6 @@ void putNextOnQueueByPrio(int clk) {
          }
          newProcesses.insert(newProcesses.begin() + i, p);
 
-          // bool wasScheduled = false;
-          
-          // //if not empty, loop through the newProcesses queue to place is appropriately.
-          // for(int j = 0; j < newProcesses.size(); j++){
-          //     //first, if priorities are equal, sort by pid
-          //     if(p.priority == newProcesses[j].priority){
-          //         if(p.pid < newProcesses[j].pid){
-          //             newProcesses.insert(newProcesses.begin() + (j), p);
-          //         }else{
-          //             newProcesses.insert(newProcesses.begin() + (j + 1), p);   
-          //         }
-          //         wasScheduled = true;
-          //     //next, if the next process to schedule has a priority higher than the current one in the queue
-          //     //insert that at that spot
-          //     }else if(p.priority > newProcesses[j].priority){
-          //         newProcesses.insert(newProcesses.begin() + (j), p);
-          //         wasScheduled = true;
-          //     }
-          // }
-          // //if the current process wasn't scheduled, put it at the end of the new set of processes
-          // if(!wasScheduled){
-          //     newProcesses.push_back(p);
-          // }
       }
       processes.pop_front();
    }
@@ -638,6 +644,7 @@ void putNextOnQueueByDeadline(int clk) {
    while (processes[0].arrival == clk) {
       Process p = processes[0];
       totalProcessesScheduled++;
+      numInQueues++;
       if (queue.size() == 0) { // if there's no processes in the queue, just add it
          #ifdef DEBUG
             cout << clk << ": Putting process (" << p.pid << ") on beginning of queue\n";
@@ -671,21 +678,23 @@ void putNextOnQueueByDeadline(int clk) {
 
 // Bring in all incoming processes by clock tick and put them in appropriate priority queues (for HWS)
 void putNextOnProcessQueues(int clk) {
-   std::sort_heap(queues.begin(), queues.end());
+   // std::sort_heap(queues.begin(), queues.end());
    while (processes[0].arrival == clk) {
+      numInQueues++;
       Process p = processes[0];
-      int j = 0;
-      for (j=0; j < queues.size(); j++) { // find the process queue it should go in
-         if (p.priority == queues[j].priority) {
+      // int j = 0;
+      deque<ProcessQueue>::iterator j;
+      for (j = queues.begin(); j != queues.end(); j++) { // find the process queue it should go in
+         if (p.priority == j->priority) {
             p.scheduled = true;
-            queues[j].addProcess(p);
+            j->addProcess(p);
             #ifdef DEBUG
-               cout << clk << ": Putting process (" << p.pid << ") on queue\n";
+               // cout << clk << ": Putting process (" << p.pid << ") on queue\n";
             #endif
             break;
          }
       }
-      if (j == queues.size()) {
+      if (j == queues.end()) {
          // no priority queue made for this priority yet, make a new one
          ProcessQueue pq;
          p.scheduled = true;
@@ -693,29 +702,31 @@ void putNextOnProcessQueues(int clk) {
          queues.push_back(pq);
          std::push_heap(queues.begin(), queues.end());
           #ifdef DEBUG
-            cout << clk << ": Putting process (" << p.pid << ") on beginning of new queue\n";
+            // cout << clk << ": Putting process (" << p.pid << ") on beginning of new queue\n";
          #endif
       }
+      totalProcessesScheduled++;
       processes.pop_front();
    }
-   std::make_heap(queues.begin(), queues.end());
+   // std::make_heap(queues.begin(), queues.end());
 }
 
 // Take a process and put it in the appropriate priority queue (for HS)
 void addToProcessQueues(Process p, int clk) {
-   std::sort_heap(queues.begin(), queues.end());
-   int j = 0;
-   for (j=0; j < queues.size(); j++) { // find the process queue it should go in
-      if (p.dynamicpriority == queues[j].priority) {
+   // std::sort_heap(queues.begin(), queues.end());
+   // int j = 0;
+   deque<ProcessQueue>::iterator j;
+   for (j = queues.begin(); j != queues.end(); j++) { // find the process queue it should go in
+      if (p.dynamicpriority == j->priority) {
          p.scheduled = true;
-         queues[j].addProcess(p);
+         j->addProcess(p);
          #ifdef DEBUG
-            cout << clk << ": Putting process (" << p.pid << ") back on queue\n";
+            // cout << clk << ": Putting process (" << p.pid << ") back on queue\n";
          #endif
          break;
       }
    }
-   if (j == queues.size()) {
+   if (j == queues.end()) {
       // no priority queue made for this priority yet, make a new one
       ProcessQueue pq;
       p.scheduled = true;
@@ -723,23 +734,23 @@ void addToProcessQueues(Process p, int clk) {
       queues.push_back(pq);
       std::push_heap(queues.begin(), queues.end());
        #ifdef DEBUG
-         cout << clk << ": Putting process (" << p.pid << ") back into new queue\n";
+         // cout << clk << ": Putting process (" << p.pid << ") back into new queue\n";
       #endif
    }
       
-   std::make_heap(queues.begin(), queues.end());
+   // std::make_heap(queues.begin(), queues.end());
 }
 
-bool thereAreProcessesLeftToBeScheduled() {
-   bool result = false;
-   for (int i=0; i<processes.size(); i++) {
-      if (!processes[i].scheduled) {
-         result = true;
-         break;
-      }
-   }
-   return result;
-}
+// bool thereAreProcessesLeftToBeScheduled() {
+//    bool result = false;
+//    for (int i=0; i<processes.size(); i++) {
+//       if (!processes[i].scheduled) {
+//          result = true;
+//          break;
+//       }
+//    }
+//    return result;
+// }
 
 void printProcesses() {
    for (int i = 0; i < processes.size(); i++) {
