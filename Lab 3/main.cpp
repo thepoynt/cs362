@@ -27,7 +27,7 @@ using std::deque;
 using std::string;
 using std::make_heap;
 
-// #define DEBUG 0;
+#define DEBUG 0;
 
 
 int runMFQS();
@@ -75,7 +75,7 @@ int main () {
    bool done = false;
 
    // Read in processes from file
-   if (!readProcesses("300")) {
+   if (!readProcesses("MFQS starving")) {
       perror("Error reading file");
       exit(1);
    }
@@ -263,6 +263,9 @@ int runMFQS() {
     ProcessQueue fcfs;
     fcfs.priority = g;
     queues.push_back(fcfs);
+
+    Process lastrun;
+    lastrun.setVars("0  0  0  0  0  0");
     
     while ((!processes.empty()) || (numInQueues > 0)) {
         
@@ -276,7 +279,14 @@ int runMFQS() {
                printQueues(queues);
             #endif
 
+            if (queues[currentqueue].processes[0].pid != lastrun.pid) {
+               if (lastrun.endTime == 0) // process is still not finished, but need to print out end of current "burst"
+                  gannt << clk << " | ";
+               gannt << clk << " <- Process " << queues[currentqueue].processes[0].pid << " -> ";
+            }
+
             queues[currentqueue].processes[0].execute();
+            lastrun = queues[currentqueue].processes[0];
             totalWaitTime += (numInQueues - 1); // add wating time for all other processes
             queues[currentqueue].processes[0].lastrun = clk;
             queues[currentqueue].processes[0].timeInThisQuantum++;
@@ -284,6 +294,7 @@ int runMFQS() {
 
             // if it has now finished, remove it and update the current queue
             if(queues[currentqueue].processes[0].timeLeft == 0){
+               gannt << clk+1 << " | ";
                numInQueues--;
                finished.push_back(queues[currentqueue].processes[0]);
                totalTurnaroundTime += (clk - queues[currentqueue].processes[0].arrival + 1);
@@ -317,6 +328,7 @@ int runMFQS() {
         // }
         clk++;
     }
+    gannt << "\n";
    printf("Done with MFQS!\n");
    return 0;
 }
@@ -479,8 +491,8 @@ int runHS() {
             // printQueues(queues);
          #endif
 
-         if (queues.front().processes[0].pid == 147) {
-
+         if (queues.front().processes[0].pid >= 147) {
+            cout << queues.front().processes[0].pid;
          }
          if (queues.front().processes[0].pid != lastrun.pid) {
             if (lastrun.endTime == 0) // process is still not finished, but need to print out end of current "burst"
