@@ -42,7 +42,6 @@ void putNextOnProcessQueues(int);
 void addToProcessQueues(Process, int);
 void printProcesses();
 void printQueues(deque<ProcessQueue>);
-void printIntVector(vector<int>);
 void printProcessDeque(deque<Process>);
 void agingProcesses(int);
 void putNextOnQueueByPrio(int);
@@ -50,6 +49,7 @@ int updateCurrentQueue();
 
 
 int scheduler;
+string file;
 int numQueues = 3;
 int tq;
 int agingtime;
@@ -74,16 +74,19 @@ bool sortProcesses (const Process &a, const Process &b) {
 int main () {
    bool done = false;
 
+   printf("Please enter the name of the input file:\n");
+   cin >> file;
+
    // Read in processes from file
-   if (!readProcesses("10k")) {
+   if (!readProcesses(file)) {
       perror("Error reading file");
       exit(1);
    }
 
-   // sort processes by arrival time
+   // sort processes by arrival time for easy access later
    std::sort(processes.begin(), processes.end(), sortProcesses);
 
-   // printProcesses();
+
    #ifdef DEBUG
       // printProcesses();
    #endif
@@ -319,7 +322,7 @@ int runMFQS() {
             // age any processes that need it
             agingProcesses(clk);
          }
-        // }
+
         clk++;
     }
     gannt << "\n";
@@ -360,8 +363,6 @@ int runRTS() {
 
    while (processes.size() > 0 || queue.size() > 0) {
 
-      // cout << "\r" << finished.size() << " processes completed." << std::flush;
-
       // Bring in any new processes at current clok, putting them in queue based on deadline
       putNextOnQueueByDeadline(clk);
 
@@ -374,7 +375,6 @@ int runRTS() {
                   cout << clk << ": Process " << queue[i].pid << " ran out of time!\n";
                #endif
                totalProcessesScheduled--; // not counted towards total number of processes scheduled
-               // totalTurnaroundTime -= (clk - queue[i].arrival); // turnaround time also not counted
                attempted.push_back(queue[i]);
                queue.erase(queue.begin() + i);
                numInQueues--;
@@ -411,11 +411,6 @@ int runRTS() {
 
          // increment the waiting time for all other processes in queue
          totalWaitTime += (numInQueues - 1);
-         // for (int i = 1; i<queue.size(); i++) {
-         //    totalWaitTime++;
-         //    totalTurnaroundTime++; // this gets incremented for all other processes, as well as the current process (all processes on queue are having their turnaround time incremented, while only all non-running processes get wait time incremented)
-         // }
-         // totalTurnaroundTime++; // Increment for current process. See comment above ^^
       }
 
       clk++;
@@ -591,11 +586,12 @@ int runHS() {
             Process p = iOqueue[i];
             addToProcessQueues(p, clk);
          }  else {
-            tempIO.push_back(iOqueue[i]);
             //decrease IO time left
-            tempIO.back().ioLeft--;
+            iOqueue[i].ioLeft--;
             //increase priority according to IO time
-            tempIO.back().dynamicpriority++;
+            iOqueue[i].dynamicpriority++;
+
+            tempIO.push_back(iOqueue[i]);
          }
          
       }
@@ -636,7 +632,6 @@ void putNextOnQueueByPrio(int clk) {
    //put newProcesses into queues
    for(int i = 0; i < newProcesses.size(); i++){
       newProcesses[i].scheduled = true;
-      // newProcesses[i].startTimes.push_back(clk);
       queues.front().addProcess(newProcesses[i]);
       #ifdef DEBUG
          cout << clk << ": Putting process (" << newProcesses[i].pid << ") in queue\n";
@@ -721,9 +716,9 @@ void addToProcessQueues(Process p, int clk) {
       if (p.dynamicpriority == j->priority) {
          p.scheduled = true;
          j->addProcess(p);
-         #ifdef DEBUG
-            // cout << clk << ": Putting process (" << p.pid << ") back on queue\n";
-         #endif
+         // #ifdef DEBUG
+         //    cout << clk << ": Putting process (" << p.pid << ") back on queue\n";
+         // #endif
          break;
       }
    }
@@ -734,9 +729,9 @@ void addToProcessQueues(Process p, int clk) {
       pq.addProcess(p);
       queues.push_back(pq);
       std::push_heap(queues.begin(), queues.end());
-       #ifdef DEBUG
-         // cout << clk << ": Putting process (" << p.pid << ") back into new queue\n";
-      #endif
+      //  #ifdef DEBUG
+      //    cout << clk << ": Putting process (" << p.pid << ") back into new queue\n";
+      // #endif
    }
 }
 
@@ -753,13 +748,6 @@ void printQueues(deque<ProcessQueue> v) {
       cout << "Queue "<< v[i].priority << ": " << v[i].toString() << "  ----  ";
    }
    cout << "\n";
-}
-
-void printIntVector(vector<int> v) {
-   cout << v[0];
-   for (int i = 1; i < v.size(); i++) {
-      cout << ", " << v[i];
-   }
 }
 
 void printProcessDeque(deque<Process> v) {

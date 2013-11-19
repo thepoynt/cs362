@@ -7,8 +7,8 @@
 
 README
 
+	A process scheduler in C++ that implements a Real-Time scheduler, a Multi-Level Feedback Queue scheduler, and a Hybrid Windows scheduler. 
 	
-
 
 AUTHORS
 	
@@ -17,7 +17,9 @@ AUTHORS
 
 INSTALLATION AND EXECUTION
 	
+	To compile, execute "make" in the project directory. To run, execute "./run". Select the sceduler you wish to run and input your desired values as prompted.
 	
 
 BUGS
 
+	The Hybrid scheduler does not complete all the processes when given a large set of processes. This has been thuroughly investigated and as of yet the cause is unknown.
