@@ -426,8 +426,8 @@ int runHS() {
     int clk = 0;
     int tqcount = 0;
     make_heap(queues.begin(), queues.end()); // put those queues into heap form
-    Process lastrun;
-    lastrun.setVars("0  0  0  0  0  0");
+    Process lastRun;
+    lastRun.setVars("0  0  0  0  0  0");
     bool first = true;
     
    while (!processes.empty() || !queues.empty() || !iOqueue.empty()) {
@@ -482,8 +482,8 @@ int runHS() {
             // printQueues(queues);
          #endif
 
-         if (queues.front().processes[0].pid != lastrun.pid) {
-            if (lastrun.endTime == 0) // process is still not finished, but need to print out end of current "burst"
+         if (queues.front().processes[0].pid != lastRun.pid) {
+            if (lastRun.endTime == 0) // process is still not finished, but need to print out end of current "burst"
                gannt << clk << " | ";
             gannt << clk << " <- Process " << queues.front().processes[0].pid << " -> ";
          }
@@ -495,9 +495,9 @@ int runHS() {
          #endif
          
          queues.front().processes[0].execute();
-         lastrun = queues.front().processes[0];
+         lastRun = queues.front().processes[0];
 
-         // lastRun gets updated
+         // process' lastrun gets updated
          queues.front().processes[0].lastrun = clk;
 
          // increment that process' timeInThisQuantum
@@ -571,9 +571,9 @@ int runHS() {
          totalWaitTime += (numInQueues - 1);
       }
 
-      if (clk < 10200) {
-         cout << clk << ": " << processes.size() << " : " << queues.size() << " : " << iOqueue.size() << "\n";
-      }
+      
+      // cout << clk << ": " << processes.size() << " : " << queues.size() << " : " << iOqueue.size() << "\n";
+
       // loop through iOqueue, searching for processes that are done with I/O
       deque<Process> tempIO;
       for(int i = 0; i < iOqueue.size(); i++){
