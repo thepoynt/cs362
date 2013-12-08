@@ -26,6 +26,7 @@ void departure(int);
 double rndom();
 void drive();
 int round_up(double);
+void print_streets();
 
 int numCars = 0;
 deque<deque<Car> > streets; //each queue for each street
@@ -34,7 +35,7 @@ int clk = 0; // clock counter
 int carsFinished = 0;
 int carsScheduled = 0;
 sem_t turn;
-sem_t clockSem;
+sem_t streetSem;
 
 
 int main () {
@@ -49,7 +50,7 @@ int main () {
    cout << "\nRunning with " << numCars << " cars\n";
 
    sem_init(&turn, 0, 1);
-   sem_init(&clockSem, 0, 1);
+   sem_init(&streetSem, 0, 1);
 
    while (carsFinished < numCars) {
 
@@ -65,9 +66,11 @@ int main () {
 
       if ((carsScheduled < numCars) && ((carsScheduled - carsFinished) < 110) && (i < numCarsThisRound)) {
          cout << clk << ": Generating " << numCarsThisRound << " cars. Already scheduled: " << carsScheduled << ", finished: " << carsFinished << "\n";
+         sem_wait(&streetSem);
+         print_streets();
+         sem_post(&streetSem);
       }
 
-      sem_wait(&clockSem);
       //       there are still cars      there aren't more than 110 cars waiting    we don't go over the number of cars for this clock
       while ((carsScheduled < numCars) && ((carsScheduled - carsFinished) < 110) && (i < numCarsThisRound)) {
          
@@ -88,20 +91,21 @@ int main () {
          std::string id(s.str());
          car.setId(id);
 
-         cout << clk << ": Generating car " << car.id << " at street " << num << "\n";
+         cout << clk << ":\tGenerating car " << car.id << " at street " << num << "\n";
+
+         sem_wait(&streetSem);
+            streets[num].push_back(car);
+         sem_post(&streetSem);
 
          // make new thread for that car
          pthread_t pt;
          pthread_create(&pt, NULL, &arrival, (void *)&car);
-
-         streets[num].push_back(car);
 
          carsScheduled++;
          i++;
       }
 
       clk++;
-      sem_post(&clockSem);
    }
 
    return (0);
@@ -112,36 +116,38 @@ int main () {
 void* arrival(void *v) {
    Car car = *(Car*)v;
 
+   // if there are not any cars already waiting
    if (empty) {
       empty = false;
+      
       cout << clk << ": Car " << car.id << " driving from street " << car.queue << " - it was empty\n";
-      sem_wait(&clockSem);
-         drive();
-         departure(car.queue);
-      sem_post(&clockSem);
+      drive();
+      departure(car.queue);
    } else {
-      // wait until I'm at the front of the queue
+      // block until I'm at the front of the queue
       while (true) {
          if (streets[car.queue].front().id.compare(car.id) == 0) {
-            cout << "Car " << car.id << " At the Front!\n";
+            cout << clk << ": Car " << car.id << " At the Front!\n";
             break;
          }
       }
-      sem_wait(&turn); // wait for someone to signal that it is street[i]’s turn to go 
+      sem_wait(&turn); // wait for someone to signal that it is street[i]’s turn to go    
          cout << clk << ": Car " << car.id << " driving from street " << car.queue << "\n";
-         sem_wait(&clockSem);
-            drive();
-            departure(car.queue);
-         sem_post(&clockSem);
+         drive();
+         departure(car.queue);
       sem_post(&turn);
    }
+   pthread_exit(NULL);
 }
 
 
 // departure of car from intersection
 void departure(int i) {
    // one car departs
-   streets[i].pop_front();
+   sem_wait(&streetSem);
+      streets[i].pop_front();
+      print_streets();
+   sem_post(&streetSem);
 
    // if no cars are in queues, empty = true 
    if (streets[0].empty() && streets[1].empty() && streets[2].empty() && streets[3].empty()) {
@@ -151,9 +157,17 @@ void departure(int i) {
    carsFinished++;
 }
 
+// take up a clock tick to simulate driving
 void drive() {
-   clk += 2;
+   // block until the clock has incremented
+   int old = clk;
+   while (true) {
+      if (clk = (old+1)) {
+         break;
+      }
+   }
 }
+
 
 /* Returns a random number from 0 to 1 */
 double rndom() { 
@@ -171,6 +185,23 @@ double rndom() {
    return ((double) state/M);
 }
 
+
 int round_up(double n) {
    return (int)(floor(n + 0.5));
 }
+
+
+void print_streets() {
+   for (int i=0; i<4; i++) {
+      bool first = true;
+      for (int j = 0; j<streets[i].size(); j++) {
+         if (!first)
+            cout << ", ";
+         first = false;
+         cout << streets[i][j].id;
+      }
+      cout << " --- ";
+   }
+   cout << "\n";
+}
+
