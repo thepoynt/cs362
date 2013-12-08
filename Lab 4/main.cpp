@@ -34,14 +34,24 @@ deque<deque<pthread_t> > streets; //each queue for each street
 bool empty = false; // intersection is empty (Boolean)
 int clk = 0; // clock counter
 int carsFinished = 0;
+int carsScheduled = 0;
 sem_t turn;
 
 
 
 // Each car thread runs this
-void* car(void*) {
+void* car(void *n) {
+   // pull in the queue that I'm in (0-3)
+   int *queue = (int *) n;
+
+   // wait until I'm at the front of the queue
+   while (true) {
+      
+   }
+
+   // call arrival function
    cout << "Car arrived";
-   return 0;
+   pthread_exit(NULL);
 }
 
 
@@ -49,21 +59,26 @@ int main () {
    printf("Please enter the number of cars to run:\n");
    cin >> numCars;
 
-   sem_init(&turn, 0, 10);
+   sem_init(&turn, 0, 100);
 
    while (carsFinished < numCars) {
 
-      if (numCars < 3) {
+      // Generate a random number of cars, from 0 to 5
+      int numCarsThisRound = round_up(rndom() * 4);
+      int i = 0;
+      while ((carsScheduled < numCars) && ((carsScheduled - carsFinished) < 110) && (i < numCarsThisRound)) {
+         // assign each car to a random street
          int num = round_up(rndom() * 3);
 
          pthread_t pt;
-         pthread_create(&pt, NULL, &car, NULL);
+         pthread_create(&pt, NULL, &car, &num);
 
          streets[num].push_back(pt);
 
+         carsScheduled++;
+         i++;
       }
 
-      
 
 
       clk++;
@@ -95,6 +110,8 @@ void departure(int i) {
    if (streets[0].empty() && streets[1].empty() && streets[2].empty() && streets[3].empty()) {
       empty = true;
    }
+
+   carsFinished++;
 }
 
 void drive(int i) {
