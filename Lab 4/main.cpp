@@ -36,6 +36,7 @@ int carsFinished = 0;
 int carsScheduled = 0;
 sem_t turn;
 sem_t streetSem;
+sem_t clkSem;
 
 
 int main () {
@@ -51,6 +52,7 @@ int main () {
 
    sem_init(&turn, 0, 1);
    sem_init(&streetSem, 0, 1);
+   sem_init(&clkSem, 0, 1);
 
    while (carsFinished < numCars) {
 
@@ -104,8 +106,9 @@ int main () {
          carsScheduled++;
          i++;
       }
-
-      clk++;
+      sem_wait(&clkSem);
+         clk++;
+      sem_post(&clkSem);
    }
 
    return (0);
@@ -116,14 +119,14 @@ int main () {
 void* arrival(void *v) {
    Car car = *(Car*)v;
 
-   // if there are not any cars already waiting
-   if (empty) {
-      empty = false;
+   // // if there are not any cars already waiting
+   // if (empty) {
+   //    empty = false;
       
-      cout << clk << ": Car " << car.id << " driving from street " << car.queue << " - it was empty\n";
-      drive();
-      departure(car.queue);
-   } else {
+   //    cout << clk << ": Car " << car.id << " driving from street " << car.queue << " - it was empty\n";
+   //    drive();
+   //    departure(car.queue);
+   // } else {
       // block until I'm at the front of the queue
       while (true) {
          if (streets[car.queue].front().id.compare(car.id) == 0) {
@@ -136,7 +139,7 @@ void* arrival(void *v) {
          drive();
          departure(car.queue);
       sem_post(&turn);
-   }
+   // }
    pthread_exit(NULL);
 }
 
@@ -149,9 +152,9 @@ void departure(int i) {
       print_streets();
    
       // if no cars are in queues, empty = true 
-      if (streets[0].empty() && streets[1].empty() && streets[2].empty() && streets[3].empty()) {
-         empty = true;
-      }
+      // if (streets[0].empty() && streets[1].empty() && streets[2].empty() && streets[3].empty()) {
+      //    empty = true;
+      // }
    sem_post(&streetSem);
 
    carsFinished++;
@@ -159,13 +162,16 @@ void departure(int i) {
 
 // take up a clock tick to simulate driving
 void drive() {
+   sem_wait(&clkSem);
+      clk++;
+   sem_post(&clkSem);
    // block until the clock has incremented
-   int old = clk;
-   while (true) {
-      if (clk = (old+1)) {
-         break;
-      }
-   }
+   // int old = clk;
+   // while (true) {
+   //    if (clk == (old+1)) {
+   //       break;
+   //    }
+   // }
 }
 
 
