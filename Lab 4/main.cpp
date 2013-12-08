@@ -1,11 +1,9 @@
 #include <iostream>
-#include <vector>
 #include <deque>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/wait.h>
 #include <signal.h>
 #include <math.h>
 #include <cmath>
@@ -13,24 +11,24 @@
 #include <typeinfo>
 #include <pthread.h>
 #include <semaphore.h>
+#include "car.h"
 
 using std::cout;
 using std::cin;
-using std::vector;
 using std::deque;
 using std::string;
 // using std::pthread_create;
 
 // #define DEBUG 0;
 
-void arrival(int);
+void* arrival(void*);
 void departure(int);
 double rndom();
-void drive(int);
+void drive();
 int round_up(double);
 
 int numCars = 0;
-deque<deque<pthread_t> > streets; //each queue for each street
+deque<deque<Car> > streets; //each queue for each street
 bool empty = false; // intersection is empty (Boolean)
 int clk = 0; // clock counter
 int carsFinished = 0;
@@ -38,28 +36,11 @@ int carsScheduled = 0;
 sem_t turn;
 
 
-
-// Each car thread runs this
-void* car(void *n) {
-   // pull in the queue that I'm in (0-3)
-   int *queue = (int *) n;
-
-   // wait until I'm at the front of the queue
-   while (true) {
-      
-   }
-
-   // call arrival function
-   cout << "Car arrived";
-   pthread_exit(NULL);
-}
-
-
 int main () {
    printf("Please enter the number of cars to run:\n");
    cin >> numCars;
 
-   sem_init(&turn, 0, 100);
+   sem_init(&turn, 0, 1);
 
    while (carsFinished < numCars) {
 
@@ -70,16 +51,17 @@ int main () {
          // assign each car to a random street
          int num = round_up(rndom() * 3);
 
-         pthread_t pt;
-         pthread_create(&pt, NULL, &car, &num);
+         Car car;
+         car.setQueue(num);
 
-         streets[num].push_back(pt);
+         pthread_t pt;
+         pthread_create(&pt, NULL, &arrival, (void *)&car);
+
+         streets[num].push_back(car);
 
          carsScheduled++;
          i++;
       }
-
-
 
       clk++;
    }
@@ -89,22 +71,31 @@ int main () {
 
      
 // car arrives at street[i]
-void arrival(int i) {
+void* arrival(void *v) {
+   Car car = *(Car*)v;
+
    if (empty) {
       empty = false;
-      drive(i);
+      drive();
    } else {
+      // wait until I'm at the front of the queue
+      while (true) {
+         if (&(streets[car.queue].front()) == &car) {
+            break;
+         }
+      }
       sem_wait(&turn); // wait for someone to signal that it is street[i]’s turn to go 
-      drive(i);
+      drive();
+      departure(car.queue);
       sem_post(&turn);
    }
-} //arrival(i)
+}
 
 
 // departure of car from intersection
 void departure(int i) {
    // one car departs
-   // pick the next intersection for next car to go
+   streets[i].pop_front();
 
    // if no cars are in queues, empty = true 
    if (streets[0].empty() && streets[1].empty() && streets[2].empty() && streets[3].empty()) {
@@ -114,7 +105,7 @@ void departure(int i) {
    carsFinished++;
 }
 
-void drive(int i) {
+void drive() {
    clk += 2;
 }
 
