@@ -147,12 +147,12 @@ void departure(int i) {
    sem_wait(&streetSem);
       streets[i].pop_front();
       print_streets();
+   
+      // if no cars are in queues, empty = true 
+      if (streets[0].empty() && streets[1].empty() && streets[2].empty() && streets[3].empty()) {
+         empty = true;
+      }
    sem_post(&streetSem);
-
-   // if no cars are in queues, empty = true 
-   if (streets[0].empty() && streets[1].empty() && streets[2].empty() && streets[3].empty()) {
-      empty = true;
-   }
 
    carsFinished++;
 }
@@ -192,7 +192,12 @@ int round_up(double n) {
 
 
 void print_streets() {
+   bool firstfirst = true;
    for (int i=0; i<4; i++) {
+      if (!firstfirst)
+         cout << "  |  ";
+      firstfirst = false;
+
       bool first = true;
       for (int j = 0; j<streets[i].size(); j++) {
          if (!first)
@@ -200,7 +205,7 @@ void print_streets() {
          first = false;
          cout << streets[i][j].id;
       }
-      cout << " --- ";
+      
    }
    cout << "\n";
 }
