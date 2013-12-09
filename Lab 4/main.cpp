@@ -55,7 +55,7 @@ int main () {
    sem_init(&turn, 0, 1);
    sem_init(&streetSem, 0, 1);
    sem_init(&sigSem, 0, 0);
-   sem_init(&clkSem, 0, 1);
+   sem_init(&clkSem, 0, 0);
 
    while (carsFinished < numCars) {
 
@@ -70,10 +70,10 @@ int main () {
       int i = 0;
 
       if ((carsScheduled < numCars) && ((carsScheduled - carsFinished) < 110) && (i < numCarsThisRound)) {
-         cout << clk << ": Generating " << numCarsThisRound << " cars. Already scheduled: " << carsScheduled << ", finished: " << carsFinished << "\n";
          sem_wait(&streetSem);
          print_streets();
          sem_post(&streetSem);
+         cout << clk << ": Generating " << numCarsThisRound << " cars. Already scheduled: " << carsScheduled << ", finished: " << carsFinished << "\n";
       }
 
       //       there are still cars      there aren't more than 110 cars waiting    we don't go over the number of cars for this clock
@@ -99,6 +99,8 @@ int main () {
          cout << clk << ":\tGenerating car " << car.id << " at street " << num << "\n";
 
          sem_wait(&streetSem);
+            if (streets[num].empty())
+               car.isFront = true;
             streets[num].push_back(car);
          sem_post(&streetSem);
 
@@ -112,8 +114,11 @@ int main () {
 
       // if there's a car that should go this clk
       if (!streetsAreEmpty()) {
+         // wait until that car runs before incrementing clk
          sem_post(&sigSem);
+         cout << "waiting for clk in main\n";
          sem_wait(&clkSem);
+         cout << "got clk in main\n";
       }
       clk++;
      
@@ -127,7 +132,7 @@ int main () {
 void* arrival(void *v) {
    Car car = *(Car*)v;
 
-   // // if there are not any cars already waiting
+   // if there are not any cars already waiting
    // if (empty) {
    //    empty = false;
       
@@ -137,19 +142,29 @@ void* arrival(void *v) {
    // } else {
       // block until I'm at the front of the queue
       while (true) {
-         if (streets[car.queue].front().id.compare(car.id) == 0) {
-            cout << clk << ": Car " << car.id << " At the Front!\n";
+         if (car.isFront) {
             break;
          }
+         // sem_wait(&streetSem);
+         // if (streets[car.queue].front().id.compare(car.id) == 0) {
+         //    cout << clk << ": Car " << car.id << " At the Front!\n";
+         //    break;
+         // }
+         // sem_post(&streetSem);
       }
+      cout << car.id << " waiting for turn\n";
       sem_wait(&turn); // wait for it to be someone's turn
+         cout << car.id << " waiting for signal\n";
          sem_wait(&sigSem); // wait til the main method is ready
             cout << clk << ": Car " << car.id << " driving from street " << car.queue << "\n";
             drive();
             departure(car.queue);
+            cout << car.id << " releasing clock\n";
          sem_post(&clkSem); // let the main method know I'm done
+      cout << car.id << " releasing turn\n";
       sem_post(&turn);
    // }
+   cout << car.id << " exiting\n";
    pthread_exit(NULL);
 }
 
@@ -157,14 +172,20 @@ void* arrival(void *v) {
 // departure of car from intersection
 void departure(int i) {
    // one car departs
+   cout << "waiting for streets in departure\n";
    sem_wait(&streetSem);
+      print_streets();
       streets[i].pop_front();
+      if (!streets[i].empty()) {
+         streets[i].front().isFront = true;
+      }
       print_streets();
    
       // if no cars are in queues, empty = true 
       // if (streets[0].empty() && streets[1].empty() && streets[2].empty() && streets[3].empty()) {
       //    empty = true;
       // }
+   cout << "releasing streets in departure\n";
    sem_post(&streetSem);
 
    carsFinished++;

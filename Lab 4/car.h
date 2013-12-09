@@ -11,6 +11,7 @@ class Car {
 		void setId(std::string);
 		std::string id;
 		int queue;
+		bool isFront;
 };
 
 #endif

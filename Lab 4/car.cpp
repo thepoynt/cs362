@@ -2,11 +2,12 @@
 #include "car.h"
 
 Car::Car() {
-
+	isFront = false;
 }
 
 Car::Car(int q) {
 	queue = q;
+	isFront = false;
 }
 
 void Car::setQueue(int q) {
