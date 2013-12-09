@@ -25,8 +25,8 @@ public class Car implements Runnable {
 			e.printStackTrace();
 		}
 		//changeStats(carsRan, carsToRun, clk);
-		Intersection2.changeStats(1, -1, 1);
-		System.out.println("Thread #" + carID + " finished at clk: " + Intersection2.getClk() + " from Street #" + streetNum);
+		Intersection.changeStats(1, -1, 1);
+		System.out.println("Thread #" + carID + " finished at clk: " + Intersection.getClk() + " from Street #" + streetNum);
 		checkForFinished.release();
 	}
 }
