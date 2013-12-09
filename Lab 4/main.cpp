@@ -27,6 +27,7 @@ double rndom();
 void drive();
 int round_up(double);
 void print_streets();
+bool streetsAreEmpty();
 
 int numCars = 0;
 deque<deque<Car> > streets; //each queue for each street
@@ -36,6 +37,7 @@ int carsFinished = 0;
 int carsScheduled = 0;
 sem_t turn;
 sem_t streetSem;
+sem_t sigSem;
 sem_t clkSem;
 
 
@@ -52,6 +54,7 @@ int main () {
 
    sem_init(&turn, 0, 1);
    sem_init(&streetSem, 0, 1);
+   sem_init(&sigSem, 0, 0);
    sem_init(&clkSem, 0, 1);
 
    while (carsFinished < numCars) {
@@ -106,9 +109,14 @@ int main () {
          carsScheduled++;
          i++;
       }
-      sem_wait(&clkSem);
-         clk++;
-      sem_post(&clkSem);
+
+      // if there's a car that should go this clk
+      if (!streetsAreEmpty()) {
+         sem_post(&sigSem);
+         sem_wait(&clkSem);
+      }
+      clk++;
+     
    }
 
    return (0);
@@ -134,10 +142,12 @@ void* arrival(void *v) {
             break;
          }
       }
-      sem_wait(&turn); // wait for someone to signal that it is street[i]’s turn to go    
-         cout << clk << ": Car " << car.id << " driving from street " << car.queue << "\n";
-         drive();
-         departure(car.queue);
+      sem_wait(&turn); // wait for it to be someone's turn
+         sem_wait(&sigSem); // wait til the main method is ready
+            cout << clk << ": Car " << car.id << " driving from street " << car.queue << "\n";
+            drive();
+            departure(car.queue);
+         sem_post(&clkSem); // let the main method know I'm done
       sem_post(&turn);
    // }
    pthread_exit(NULL);
@@ -162,9 +172,8 @@ void departure(int i) {
 
 // take up a clock tick to simulate driving
 void drive() {
-   sem_wait(&clkSem);
-      clk++;
-   sem_post(&clkSem);
+   clk++;
+
    // block until the clock has incremented
    // int old = clk;
    // while (true) {
@@ -214,5 +223,10 @@ void print_streets() {
       
    }
    cout << "\n";
+}
+
+
+bool streetsAreEmpty() {
+   return (streets[0].empty() && streets[1].empty() && streets[2].empty() && streets[3].empty());
 }
 
