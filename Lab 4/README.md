@@ -17,7 +17,8 @@ AUTHORS
 
 INSTALLATION AND EXECUTION
 	
-	To compile, execute "make" in the project directory. To run, execute "./run". Enter the total number of cars you wish to have simulated when prompted.
+	C++: To compile, execute "make" in the project directory. To run, execute "./run". Enter the total number of cars you wish to have simulated when prompted.
+	Java for Windows: Make a new project with a single package within, with whatever names you choose, then copy the Intersection.java and Car.java classes into the project. Enter the total number of cars you wish to simulate, just as you did with the C++ code.
 	
 
 BUGS
