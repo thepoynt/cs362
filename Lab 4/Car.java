@@ -22,10 +22,9 @@ public class Car implements Runnable {
 		try {
 			carCanGo.acquire();
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-//	changeStats(carsRan, carsToRun, clk);
+		//changeStats(carsRan, carsToRun, clk);
 		Intersection2.changeStats(1, -1, 1);
 		System.out.println("Thread #" + carID + " finished at clk: " + Intersection2.getClk() + " from Street #" + streetNum);
 		checkForFinished.release();
