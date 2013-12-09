@@ -52,7 +52,7 @@ int main () {
    cin >> numCars;
    cout << "\nRunning with " << numCars << " cars\n";
 
-   sem_init(&turn, 0, 1);
+   sem_init(&turn, 0, 0);
    sem_init(&streetSem, 0, 1);
    sem_init(&sigSem, 0, 0);
    sem_init(&clkSem, 0, 0);
@@ -78,35 +78,10 @@ int main () {
 
       //       there are still cars      there aren't more than 110 cars waiting    we don't go over the number of cars for this clock
       while ((carsScheduled < numCars) && ((carsScheduled - carsFinished) < 110) && (i < numCarsThisRound)) {
-         
-         // assign each car to a random street
-         double r = rndom();
-         int num;
-         if (r == 1.0) {
-            num = 3; // so it won't go to 4
-         } else {
-            num = r * 4.0;
-         }
-         
-         // make new car
-         Car car;
-         car.setQueue(num);
-         std::ostringstream s;
-         s << clk << "-" << i;
-         std::string id(s.str());
-         car.setId(id);
-
-         cout << clk << ":\tGenerating car " << car.id << " at street " << num << "\n";
-
-         sem_wait(&streetSem);
-            if (streets[num].empty())
-               car.isFront = true;
-            streets[num].push_back(car);
-         sem_post(&streetSem);
-
+       
          // make new thread for that car
          pthread_t pt;
-         pthread_create(&pt, NULL, &arrival, (void *)&car);
+         pthread_create(&pt, NULL, &arrival, (void *)&i); //(void *)&car
 
          carsScheduled++;
          i++;
@@ -115,12 +90,14 @@ int main () {
       // if there's a car that should go this clk
       if (!streetsAreEmpty()) {
          // wait until that car runs before incrementing clk
-         sem_post(&sigSem);
+         sem_post(&turn);
          cout << "waiting for clk in main\n";
          sem_wait(&clkSem);
          cout << "got clk in main\n";
+      } else {
+         clk++; // it will be incremented in drive method if the above "if" happens
       }
-      clk++;
+      
      
    }
 
@@ -130,7 +107,8 @@ int main () {
      
 // car arrives at street[i]
 void* arrival(void *v) {
-   Car car = *(Car*)v;
+   // Car car = *(Car*)v;
+   int i = *(int*)v;
 
    // if there are not any cars already waiting
    // if (empty) {
@@ -141,6 +119,32 @@ void* arrival(void *v) {
    //    departure(car.queue);
    // } else {
       // block until I'm at the front of the queue
+   // assign each car to a random street
+      double r = rndom();
+      int num;
+      if (r == 1.0) {
+         num = 3; // so it won't go to 4
+      } else {
+         num = r * 4.0;
+      }
+      
+      // make new car
+      Car car;
+      car.setQueue(num);
+      std::ostringstream s;
+      s << clk << "-" << i;
+      std::string id(s.str());
+      car.setId(id);
+
+      cout << clk << ":\tGenerating car " << car.id << " at street " << num << "\n";
+
+      sem_wait(&streetSem);
+         // if this is the first car in a street
+         if (streets[num].empty())
+            car.isFront = true;
+         streets[num].push_back(car);
+      sem_post(&streetSem);
+
       while (true) {
          if (car.isFront) {
             break;
@@ -154,15 +158,15 @@ void* arrival(void *v) {
       }
       cout << car.id << " waiting for turn\n";
       sem_wait(&turn); // wait for it to be someone's turn
-         cout << car.id << " waiting for signal\n";
-         sem_wait(&sigSem); // wait til the main method is ready
+         // cout << car.id << " waiting for signal\n";
+         // sem_wait(&sigSem); // wait til the main method is ready
             cout << clk << ": Car " << car.id << " driving from street " << car.queue << "\n";
             drive();
             departure(car.queue);
             cout << car.id << " releasing clock\n";
          sem_post(&clkSem); // let the main method know I'm done
-      cout << car.id << " releasing turn\n";
-      sem_post(&turn);
+      // cout << car.id << " releasing turn\n";
+      // sem_post(&turn);
    // }
    cout << car.id << " exiting\n";
    pthread_exit(NULL);
