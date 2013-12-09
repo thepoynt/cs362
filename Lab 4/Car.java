@@ -1,5 +1,3 @@
-package phore;
-
 import java.util.Random;
 import java.util.concurrent.Semaphore;
 
@@ -24,7 +22,6 @@ public class Car implements Runnable {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		//changeStats(carsRan, carsToRun, clk);
 		Intersection.changeStats(1, -1, 1);
 		System.out.println("Thread #" + carID + " finished at clk: " + Intersection.getClk() + " from Street #" + streetNum);
 		checkForFinished.release();
