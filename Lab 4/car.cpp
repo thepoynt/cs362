@@ -14,6 +14,6 @@ void Car::setQueue(int q) {
 	queue = q;
 }
 
-void Car::setId(std::string i) {
+void Car::setId(int i) {
 	id = i;
 }

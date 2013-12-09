@@ -2,6 +2,7 @@
 #include <deque>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
@@ -20,6 +21,8 @@ using std::deque;
 using std::string;
 
 // #define DEBUG 0;
+#define EZMALLOC(type, n) \
+  (type *) malloc((n) * sizeof(type))
 
 void* arrival(void*);
 void departure(int);
@@ -67,21 +70,24 @@ int main () {
       } else {
          numCarsThisRound = r * 6.0;
       }
-      int i = 0;
 
-      if ((carsScheduled < numCars) && ((carsScheduled - carsFinished) < 110) && (i < numCarsThisRound)) {
+      if ((carsScheduled < numCars) && ((carsScheduled - carsFinished) < 110) && (numCarsThisRound > 0)) {
          sem_wait(&streetSem);
          print_streets();
          sem_post(&streetSem);
          cout << clk << ": Generating " << numCarsThisRound << " cars. Already scheduled: " << carsScheduled << ", finished: " << carsFinished << "\n";
       }
 
+      int i = 0;
       //       there are still cars      there aren't more than 110 cars waiting    we don't go over the number of cars for this clock
       while ((carsScheduled < numCars) && ((carsScheduled - carsFinished) < 110) && (i < numCarsThisRound)) {
        
          // make new thread for that car
+         sem_post(&sigSem);
          pthread_t pt;
-         pthread_create(&pt, NULL, &arrival, (void *)&i); //(void *)&car
+         int newI = i;
+         pthread_create(&pt, NULL, &arrival, NULL); //(void *)&newI); //(void *)&car
+         sem_wait(&sigSem);
 
          carsScheduled++;
          i++;
@@ -107,18 +113,7 @@ int main () {
      
 // car arrives at street[i]
 void* arrival(void *v) {
-   // Car car = *(Car*)v;
-   int i = *(int*)v;
 
-   // if there are not any cars already waiting
-   // if (empty) {
-   //    empty = false;
-      
-   //    cout << clk << ": Car " << car.id << " driving from street " << car.queue << " - it was empty\n";
-   //    drive();
-   //    departure(car.queue);
-   // } else {
-      // block until I'm at the front of the queue
    // assign each car to a random street
       double r = rndom();
       int num;
@@ -129,14 +124,16 @@ void* arrival(void *v) {
       }
       
       // make new car
+      sem_wait(&sigSem);
       Car car;
       car.setQueue(num);
-      std::ostringstream s;
-      s << clk << "-" << i;
-      std::string id(s.str());
-      car.setId(id);
+      // std::ostringstream s;
+      // s << clk << "-" << i;
+      // std::string id(s.str());
+      car.setId((rndom() * 10000));
 
       cout << clk << ":\tGenerating car " << car.id << " at street " << num << "\n";
+      sem_post(&sigSem);
 
       sem_wait(&streetSem);
          // if this is the first car in a street
@@ -149,26 +146,20 @@ void* arrival(void *v) {
          if (car.isFront) {
             break;
          }
-         // sem_wait(&streetSem);
-         // if (streets[car.queue].front().id.compare(car.id) == 0) {
-         //    cout << clk << ": Car " << car.id << " At the Front!\n";
-         //    break;
-         // }
-         // sem_post(&streetSem);
       }
-      cout << car.id << " waiting for turn\n";
+      // cout << car.id << " waiting for turn\n";
       sem_wait(&turn); // wait for it to be someone's turn
          // cout << car.id << " waiting for signal\n";
          // sem_wait(&sigSem); // wait til the main method is ready
             cout << clk << ": Car " << car.id << " driving from street " << car.queue << "\n";
             drive();
             departure(car.queue);
-            cout << car.id << " releasing clock\n";
+            // cout << car.id << " releasing clock\n";
          sem_post(&clkSem); // let the main method know I'm done
       // cout << car.id << " releasing turn\n";
       // sem_post(&turn);
    // }
-   cout << car.id << " exiting\n";
+   // cout << car.id << " exiting\n";
    pthread_exit(NULL);
 }
 
@@ -185,10 +176,6 @@ void departure(int i) {
       }
       print_streets();
    
-      // if no cars are in queues, empty = true 
-      // if (streets[0].empty() && streets[1].empty() && streets[2].empty() && streets[3].empty()) {
-      //    empty = true;
-      // }
    cout << "releasing streets in departure\n";
    sem_post(&streetSem);
 
@@ -198,14 +185,6 @@ void departure(int i) {
 // take up a clock tick to simulate driving
 void drive() {
    clk++;
-
-   // block until the clock has incremented
-   // int old = clk;
-   // while (true) {
-   //    if (clk == (old+1)) {
-   //       break;
-   //    }
-   // }
 }
 
 

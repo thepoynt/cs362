@@ -21,3 +21,4 @@ INSTALLATION AND EXECUTION
 	
 
 BUGS
+	While the java version works, the c++ version does not. It runs correctly for a bit, but then starts behaving strangely and eventually hangs. We spent about 30 hours on the c++, but neither of us had any previous experience with pthreads, and we struggled with them.

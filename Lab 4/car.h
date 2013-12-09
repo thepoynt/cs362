@@ -8,8 +8,8 @@ class Car {
 		Car();
 		Car(int);
 		void setQueue(int);
-		void setId(std::string);
-		std::string id;
+		void setId(int);
+		int id;
 		int queue;
 		bool isFront;
 };
