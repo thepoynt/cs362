@@ -7,7 +7,7 @@
 
 README
 
-	A C++ program using threads and semaphores to simulate a 4-way traffic intersection
+	A C++/Java program using threads and semaphores to simulate a 4-way traffic intersection
 	
 
 AUTHORS
